@@ -2,9 +2,9 @@
 
 namespace MacCesar\LaravelDropzoneEnhanced\Http\Controllers;
 
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use MacCesar\LaravelDropzoneEnhanced\Models\Photo;
 
@@ -18,66 +18,104 @@ class DropzoneController extends Controller
    */
   public function upload(Request $request)
   {
-    $request->validate([
-      'file' => 'required|file|image|max:' . config('dropzone.images.max_filesize', 5000),
-      'model_id' => 'required|integer',
-      'model_type' => 'required|string',
-      'directory' => 'required|string',
-      'dimensions' => 'nullable|string',
-    ]);
+    try {
+      $request->validate([
+        'file' => 'required|file|image|max:' . config('dropzone.images.max_filesize', 5000),
+        'model_id' => 'required|integer',
+        'model_type' => 'required|string',
+        'directory' => 'required|string',
+        'dimensions' => 'nullable|string',
+      ]);
 
-    // Get upload parameters
-    $file = $request->file('file');
-    $modelId = $request->input('model_id');
-    $modelType = $request->input('model_type');
-    $directory = $request->input('directory');
-    $dimensions = $request->input('dimensions', config('dropzone.images.default_dimensions'));
-    $disk = config('dropzone.storage.disk', 'public');
+      // Get upload parameters
+      $file = $request->file('file');
+      $modelId = $request->input('model_id');
+      $modelType = $request->input('model_type');
+      $directory = $request->input('directory');
+      $dimensions = $request->input('dimensions', config('dropzone.images.default_dimensions'));
+      $disk = config('dropzone.storage.disk', 'public');
 
-    // Generate a unique filename
-    $extension = $file->getClientOriginalExtension();
-    $filename = Str::uuid() . '.' . $extension;
-    $fullPath = $directory . '/' . $filename;
+      // Generate a unique filename
+      $extension = $file->getClientOriginalExtension();
+      $filename = Str::uuid() . '.' . $extension;
+      $fullPath = $directory . '/' . $filename;
 
-    // Upload file
-    $file->storeAs($directory, $filename, $disk);
+      // Upload file
+      $file->storeAs($directory, $filename, $disk);
 
-    // Process image if needed (resize, create thumbnails)
-    $this->processImage($disk, $fullPath, $dimensions);
+      // Generamos thumbnails si están habilitados en la configuración
+      if (config('dropzone.images.thumbnails.enabled')) {
+        $directory = dirname($fullPath);
+        $filename = basename($fullPath);
+        $thumbnailDimensions = config('dropzone.images.thumbnails.dimensions', '288x288');
 
-    // Get image dimensions and size
-    $imageSize = getimagesize($file->getRealPath());
-    $width = $imageSize[0];
-    $height = $imageSize[1];
-    $size = $file->getSize();
+        // Crear directorio para miniaturas si no existe
+        $thumbnailDir = $directory . '/thumbnails/' . $thumbnailDimensions;
+        Storage::disk($disk)->makeDirectory($thumbnailDir);
 
-    // Create photo record
-    $photo = Photo::create([
-      'photoable_id' => $modelId,
-      'photoable_type' => $modelType,
-      'filename' => $filename,
-      'original_filename' => $file->getClientOriginalName(),
-      'disk' => $disk,
-      'directory' => $directory,
-      'extension' => $extension,
-      'mime_type' => $file->getMimeType(),
-      'size' => $size,
-      'width' => $width,
-      'height' => $height,
-      'sort_order' => Photo::where('photoable_id', $modelId)
-        ->where('photoable_type', $modelType)
-        ->count() + 1,
-      'is_main' => Photo::where('photoable_id', $modelId)
-        ->where('photoable_type', $modelType)
-        ->count() == 0, // First photo is main by default
-    ]);
+        // Ruta de la miniatura
+        $thumbnailPath = $thumbnailDir . '/' . $filename;
 
-    return response()->json([
-      'success' => true,
-      'photo' => $photo,
-      'url' => $photo->getUrl(),
-      'thumbnail' => $photo->getThumbnailUrl(),
-    ]);
+        // Procesar con Glide si está disponible
+        if (class_exists('MacCesar\LaravelGlideEnhanced\Facades\Glide')) {
+          [$thumbWidth, $thumbHeight] = explode('x', $thumbnailDimensions);
+
+          \MacCesar\LaravelGlideEnhanced\Facades\Glide::load($fullPath, $disk)
+            ->modify([
+              'w' => $thumbWidth,
+              'h' => $thumbHeight,
+              'fit' => 'crop',
+              'q' => config('dropzone.images.quality', 90),
+            ])
+            ->save($thumbnailPath);
+        }
+      }
+
+      // Get image dimensions and size
+      $imageSize = getimagesize($file->getRealPath());
+      $width = $imageSize[0];
+      $height = $imageSize[1];
+      $size = $file->getSize();
+
+      // Create photo record
+      $photo = Photo::create([
+        'photoable_id' => $modelId,
+        'photoable_type' => $modelType,
+        'filename' => $filename,
+        'original_filename' => $file->getClientOriginalName(),
+        'disk' => $disk,
+        'directory' => $directory,
+        'extension' => $extension,
+        'mime_type' => $file->getMimeType(),
+        'size' => $size,
+        'width' => $width,
+        'height' => $height,
+        'sort_order' => Photo::where('photoable_id', $modelId)
+          ->where('photoable_type', $modelType)
+          ->count() + 1,
+        'is_main' => Photo::where('photoable_id', $modelId)
+          ->where('photoable_type', $modelType)
+          ->count() == 0, // First photo is main by default
+      ]);
+
+      return response()->json([
+        'success' => true,
+        'photo' => $photo,
+        'url' => $photo->getUrl(),
+        'thumbnail' => $photo->getThumbnailUrl(),
+      ]);
+    } catch (\Exception $e) {
+      // Registrar el error completo para diagnóstico
+      \Log::error('Error en carga de imagen: ' . $e->getMessage());
+      \Log::error('Datos recibidos: ' . json_encode($request->all()));
+
+      // Devolver respuesta de error con detalles
+      return response()->json([
+        'success' => false,
+        'message' => $e->getMessage(),
+        'data' => $request->all()
+      ], 422);
+    }
   }
 
   /**
@@ -174,61 +212,6 @@ class DropzoneController extends Controller
     return response()->json([
       'success' => true,
     ]);
-  }
-
-  /**
-   * Process an image (resize, create thumbnails).
-   *
-   * @param string $disk
-   * @param string $path
-   * @param string $dimensions
-   * @return void
-   */
-  protected function processImage($disk, $path, $dimensions)
-  {
-    // Skip processing if no dimensions specified
-    if (empty($dimensions)) {
-      return;
-    }
-
-    // Process with Laravel Glide Enhanced if available
-    if (class_exists('MacCesar\LaravelGlideEnhanced\Facades\Glide')) {
-      // Resize main image
-      if (config('dropzone.images.pre_resize', true)) {
-        [$width, $height] = explode('x', $dimensions);
-
-        \MacCesar\LaravelGlideEnhanced\Facades\Glide::load($path, $disk)
-          ->modify([
-            'w' => $width,
-            'h' => $height,
-            'fit' => 'max',
-            'q' => config('dropzone.images.quality', 90),
-          ])
-          ->save();
-      }
-
-      // Create thumbnail if enabled
-      if (config('dropzone.images.thumbnails.enabled', true)) {
-        $thumbnailDimensions = config('dropzone.images.thumbnails.dimensions', '288x288');
-        [$thumbWidth, $thumbHeight] = explode('x', $thumbnailDimensions);
-
-        $directory = dirname($path);
-        $filename = basename($path);
-        $thumbnailPath = $directory . '/thumbnails/' . $thumbnailDimensions . '/' . $filename;
-
-        // Create thumbnail directory if it doesn't exist
-        Storage::disk($disk)->makeDirectory($directory . '/thumbnails/' . $thumbnailDimensions);
-
-        \MacCesar\LaravelGlideEnhanced\Facades\Glide::load($path, $disk)
-          ->modify([
-            'w' => $thumbWidth,
-            'h' => $thumbHeight,
-            'fit' => 'crop',
-            'q' => config('dropzone.images.quality', 90),
-          ])
-          ->save($thumbnailPath);
-      }
-    }
   }
 
   /**

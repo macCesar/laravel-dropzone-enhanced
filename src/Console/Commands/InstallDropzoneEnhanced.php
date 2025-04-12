@@ -35,8 +35,6 @@ class InstallDropzoneEnhanced extends Command
       $this->warn('Please run: php artisan vendor:publish --tag=dropzone-enhanced-assets');
     }
 
-    $this->info('Do you want to run migrations? (yes/no)');
-
     if ($this->confirm('Run migrations now?')) {
       $this->info('Running migrations...');
       $this->callSilent('migrate');

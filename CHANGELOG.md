@@ -2,6 +2,25 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 1.2.0 - 2025-04-11
+
+### Added
+- Improved error handling with detailed error messages
+- Enhanced client-side resizing configuration
+- More flexible configuration defaults from config file
+
+### Changed
+- Removed default `/admin` route prefix for greater flexibility
+- Changed default middleware to only use `web` (without `auth`)
+- Improved client-side validation and error display
+- Updated documentation with comprehensive configuration examples
+
+### Fixed
+- Fixed empty file data sent to server during upload
+- Corrected duplicate error handler in Dropzone initialization
+- Improved handling of large file uploads
+- Fixed installation command prompt issue
+
 ## 1.1.0 - 2025-04-11
 
 ### Added

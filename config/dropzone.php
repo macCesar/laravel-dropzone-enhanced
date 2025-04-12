@@ -10,8 +10,8 @@ return [
   |
   */
   'routes' => [
-    'prefix' => 'admin',
-    'middleware' => ['web', 'auth'],
+    'prefix' => '',
+    'middleware' => ['web'],
   ],
 
   /*
@@ -39,7 +39,8 @@ return [
     'default_dimensions' => '1920x1080',
     'pre_resize' => true,
     'quality' => 90,
-    'max_filesize' => 5000, // in KB
+    'max_files' => 10,
+    'max_filesize' => 10000, // en KB
     'thumbnails' => [
       'enabled' => true,
       'dimensions' => '288x288',

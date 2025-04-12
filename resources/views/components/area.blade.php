@@ -1,4 +1,4 @@
-@props(['object', 'directory', 'dimensions' => null, 'preResize' => true, 'maxFiles' => 10, 'maxFilesize' => 5])
+@props(['object', 'directory', 'dimensions' => config('dropzone.images.default_dimensions', '1920x1080'), 'preResize' => config('dropzone.images.pre_resize', true), 'maxFiles' => config('dropzone.images.max_files', 10), 'maxFilesize' => config('dropzone.images.max_filesize', 10000) / 1000])
 
 <div class="dropzone-container" data-dimensions="{{ $dimensions }}" data-directory="{{ $directory }}" data-model-id="{{ $object->id }}" data-model-type="{{ get_class($object) }}" data-pre-resize="{{ $preResize ? 'true' : 'false' }}" id="dropzone-container">
   <div class="dropzone" id="dropzone-upload">
@@ -8,16 +8,6 @@
         {{ __('dropzone-enhanced::messages.dropzone.instructions') }}
       </div>
       <div class="dz-preview-container"></div>
-    </div>
-  </div>
-
-  <div class="upload-progress-container" id="upload-progress">
-    <div class="upload-progress">
-      <div class="upload-progress-bar"></div>
-    </div>
-    <div class="upload-progress-text">
-      <span class="upload-progress-percentage">0%</span>
-      <span class="upload-progress-filename"></span>
     </div>
   </div>
 </div>
@@ -53,33 +43,6 @@
         font-size: 0.9rem;
         color: #888;
       }
-
-      .upload-progress-container {
-        display: none;
-        margin-top: 15px;
-      }
-
-      .upload-progress {
-        height: 6px;
-        background-color: #f5f5f5;
-        border-radius: 3px;
-        margin-bottom: 5px;
-        overflow: hidden;
-      }
-
-      .upload-progress-bar {
-        height: 100%;
-        background-color: #0d6efd;
-        width: 0;
-        transition: width 0.3s ease;
-      }
-
-      .upload-progress-text {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.8rem;
-        color: #555;
-      }
     </style>
   @endpush
 
@@ -100,42 +63,36 @@
             headers: {
               'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
+            // Configuración de redimensionamiento simplificada
+            resizeWidth: {{ $dimensions ? explode('x', $dimensions)[0] : 1920 }},
+            resizeHeight: {{ $dimensions ? explode('x', $dimensions)[1] : 1080 }},
+            resizeMethod: "contain",
+            resizeQuality: {{ config('dropzone.images.quality', 90) / 100 }},
+            createImageThumbnails: true,
             init: function() {
               const dropzone = this;
               const container = document.getElementById('dropzone-container');
-              const progressContainer = document.getElementById('upload-progress');
-              const progressBar = document.querySelector('.upload-progress-bar');
-              const progressPercentage = document.querySelector('.upload-progress-percentage');
-              const progressFilename = document.querySelector('.upload-progress-filename');
 
               // Add additional data
               this.on("sending", function(file, xhr, formData) {
-                formData.append("model_id", container.dataset.modelId);
+                // Convertir el ID a número entero para asegurar que sea un integer y no un string
+                formData.append("model_id", parseInt(container.dataset.modelId));
                 formData.append("model_type", container.dataset.modelType);
                 formData.append("directory", container.dataset.directory);
-                formData.append("dimensions", container.dataset.dimensions);
-                formData.append("pre_resize", container.dataset.preResize);
+                // Asegurar que dimensions siempre tenga valor
+                formData.append("dimensions", container.dataset.dimensions || "1920x1080");
 
-                // Show progress
-                progressContainer.style.display = 'block';
-                progressFilename.textContent = file.name;
-              });
-
-              // Update progress bar
-              this.on("uploadprogress", function(file, progress) {
-                progressBar.style.width = progress + '%';
-                progressPercentage.textContent = Math.round(progress) + '%';
+                // Imprimir los datos que se están enviando en consola para diagnóstico
+                console.log("Enviando datos:", {
+                  "model_id": parseInt(container.dataset.modelId),
+                  "model_type": container.dataset.modelType,
+                  "directory": container.dataset.directory,
+                  "dimensions": container.dataset.dimensions || "1920x1080"
+                });
               });
 
               // Handle success
               this.on("success", function(file, response) {
-                // Hide progress after a delay
-                setTimeout(function() {
-                  progressContainer.style.display = 'none';
-                  progressBar.style.width = '0%';
-                  progressPercentage.textContent = '0%';
-                }, 1000);
-
                 // En lugar de disparar un evento, recargar la página después de completar todas las subidas
                 if (dropzone.getActiveFiles().length === 0) {
                   // Solo recarga si no hay más archivos en cola
@@ -150,11 +107,33 @@
 
               // Handle errors
               this.on("error", function(file, errorMessage) {
-                // Hide progress
-                progressContainer.style.display = 'none';
+                // Display error - con manejo mejorado para objetos
+                let errorText = '';
 
-                // Display error
-                alert(errorMessage);
+                // Si es un objeto (respuesta JSON del servidor)
+                if (typeof errorMessage === 'object') {
+                  console.error('Error de Dropzone:', errorMessage);
+
+                  // Si tiene mensaje específico en formato Laravel
+                  if (errorMessage.errors && Object.keys(errorMessage.errors).length > 0) {
+                    // Extraer el primer mensaje de error
+                    const firstErrorField = Object.keys(errorMessage.errors)[0];
+                    errorText = errorMessage.errors[firstErrorField][0];
+                  }
+                  // Si tiene un mensaje general
+                  else if (errorMessage.message) {
+                    errorText = errorMessage.message;
+                  }
+                  // Fallback genérico
+                  else {
+                    errorText = 'Error al subir la imagen. Inténtalo de nuevo.';
+                  }
+                } else {
+                  // Si es un string simple
+                  errorText = errorMessage;
+                }
+
+                alert(errorText);
 
                 // Remove the file from the dropzone
                 dropzone.removeFile(file);

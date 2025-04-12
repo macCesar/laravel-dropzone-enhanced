@@ -8,16 +8,16 @@ A powerful and customizable Laravel package that enhances Dropzone.js to provide
 
 ## Features
 
-- 🚀 **Simple Integration**: Easily add Dropzone to any model with a simple trait
-- 🖼️ **Image Processing**: Resize, crop, and optimize images with [Laravel Glide Enhanced](https://github.com/maccesar/laravel-glide-enhanced) (optional)
-- 🔄 **Drag & Drop Reordering**: Intuitive drag-and-drop interface for sorting images
-- 🌟 **Main Image Selection**: Designate a main image for your models with toggle capability
-- 🔍 **Lightbox Preview**: View full-size images with an integrated lightbox
-- 📱 **Responsive Design**: Works beautifully on any device or screen size
-- 🌐 **Multi-language Support**: Built-in translations for English and Spanish
-- ⚡ **Local Assets**: No external CDN dependencies for improved reliability
-- 🎨 **Customizable**: Extensively configurable through a simple config file
-- 🛡️ **Secure**: Built with security best practices
+- **Simple Integration**: Easily add Dropzone to any model with a simple trait
+- **Image Processing**: Resize, crop, and optimize images with [Laravel Glide Enhanced](https://github.com/maccesar/laravel-glide-enhanced) (optional)
+- **Drag & Drop Reordering**: Intuitive drag-and-drop interface for sorting images
+- **Main Image Selection**: Designate a main image for your models with toggle capability
+- **Lightbox Preview**: View full-size images with an integrated lightbox
+- **Responsive Design**: Works beautifully on any device or screen size
+- **Multi-language Support**: Built-in translations for English and Spanish
+- **Local Assets**: No external CDN dependencies for improved reliability
+- **Customizable**: Extensively configurable through a simple config file
+- **Secure**: Built with security best practices
 
 ## Requirements
 
@@ -59,47 +59,48 @@ php artisan vendor:publish --tag=dropzone-enhanced-assets
 php artisan migrate
 ```
 
-## Basic Usage
+## Usage
 
-### Step 1: Add the HasPhotos Trait to Your Model
+Add the `HasPhotos` trait to your model:
 
 ```php
-<?php
-
-namespace App\Models;
-
-use Illuminate\Database\Eloquent\Model;
 use MacCesar\LaravelDropzoneEnhanced\Traits\HasPhotos;
 
 class Product extends Model
 {
-  use HasPhotos;
-
-  // Your existing model code...
+    use HasPhotos;
+    // ...
 }
 ```
 
-### Step 2: Add the Component to Your Blade View
+Then use the component in your views:
 
 ```blade
-<x-dropzone-enhanced::component
-  :object="$product"
-  directory="products"
-  dimensions="1920x1080"
-  :preResize="true"
-  :maxFiles="10"
-  :maxFilesize="5"
+<x-dropzone-enhanced::area 
+    :object="$product"
+    directory="products" 
 />
 ```
 
-## Configuration
+The component accepts the following parameters:
 
-You can configure the package by modifying the published config file at `config/dropzone.php`:
+| Parameter     | Description                                          | Default                          |
+| ------------- | ---------------------------------------------------- | -------------------------------- |
+| `object`      | The model to attach photos to                        | **Required**                     |
+| `directory`   | Directory where photos will be stored                | **Required**                     |
+| `dimensions`  | Max dimensions for resize (format: "widthxheight")   | From config `default_dimensions` |
+| `preResize`   | Whether to resize the image in browser before upload | From config `pre_resize`         |
+| `maxFiles`    | Maximum number of files allowed                      | From config `max_files`          |
+| `maxFilesize` | Maximum file size in MB                              | From config `max_filesize`       |
+
+### Configuration
+
+The package is highly configurable through the `config/dropzone.php` file. All component parameters use these centralized config values by default:
 
 ```php
 return [
   'routes' => [
-    'prefix' => 'admin',
+    'prefix' => '',  // Change route prefix if needed
     'middleware' => ['web', 'auth'],
   ],
   'storage' => [
@@ -110,7 +111,8 @@ return [
     'default_dimensions' => '1920x1080',
     'pre_resize' => true,
     'quality' => 90,
-    'max_filesize' => 5000, // in KB
+    'max_files' => 10,
+    'max_filesize' => 10000, // in KB
     'thumbnails' => [
       'enabled' => true,
       'dimensions' => '288x288',
@@ -182,6 +184,25 @@ The dropzone component accepts the following props:
 - `preResize`: Whether to resize images on upload (default: from config)
 - `maxFiles`: Maximum number of files allowed (default: 10)
 - `maxFilesize`: Maximum file size in MB (default: 5)
+
+## Advanced Configuration Options
+
+#### Custom Routes and Middleware
+
+By default, all package routes use the `web` middleware and have no prefix. You can customize this in your configuration:
+
+```php
+// config/dropzone.php
+'routes' => [
+  'prefix' => 'admin',  // Add a route prefix if needed
+  'middleware' => ['web', 'auth:admin'],  // Add authentication or other middleware
+],
+```
+
+This is particularly useful when:
+- You need to protect uploads with specific middleware
+- You want to integrate with your existing admin panel
+- You use different route structures for different environments
 
 ## Photo URLs
 

@@ -1,0 +1,33 @@
+# Laravel Dropzone Enhanced - .gitignore
+
+# Development files
+.windsurfrules
+
+# Documentation folder (for local development)
+/docs
+
+# Example component files
+/example-component
+
+# Composer
+/vendor
+composer.lock
+
+# Development & Testing
+.phpunit.result.cache
+coverage.xml
+phpunit.xml
+phpstan.neon
+
+# Editor and system files
+.idea
+.vscode
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+
+# Node/NPM (if using any JavaScript/CSS build processes)
+/node_modules
+npm-debug.log
+yarn-error.log
