@@ -119,7 +119,6 @@ return [
     ],
   ],
 ];
-```
 
 ## Advanced Usage
 
@@ -143,7 +142,39 @@ For advanced image processing, install the optional Laravel Glide Enhanced packa
 composer require maccesar/laravel-glide-enhanced
 ```
 
-The package will automatically detect and use it for image processing.
+The package will automatically detect and use Laravel Glide Enhanced for image processing, which provides:
+
+- Dynamic image resizing and cropping
+- Format conversion (WebP, JPG, PNG)
+- Image optimization
+- Automatic caching for improved performance
+- Watermarking capabilities
+
+Example of advanced usage with Laravel Glide Enhanced:
+
+```php
+// In your controller or view
+use MacCesar\LaravelGlideEnhanced\Facades\ImageProcessor;
+
+// Create optimized WebP thumbnails
+$optimizedUrl = ImageProcessor::webpUrl($photo->getPath(), [
+  'q' => 90,
+  'w' => 300,
+  'h' => 300,
+  'fit' => 'crop'
+]);
+
+// Use predefined presets from the Laravel Glide Enhanced configuration
+$thumbnailUrl = ImageProcessor::preset($photo->getPath(), 'thumbnail');
+
+// Generate responsive srcset attributes
+$srcset = ImageProcessor::srcset($photo->getPath(), [
+  'w' => 600,
+  'fm' => 'webp'
+]);
+```
+
+For complete documentation, visit the [Laravel Glide Enhanced repository](https://github.com/maccesar/laravel-glide-enhanced).
 
 ### Working with Photos
 
@@ -173,6 +204,23 @@ if ($product->hasPhotos()) {
 // Delete all photos
 $product->deleteAllPhotos();
 ```
+
+### Displaying Photos
+
+To display the uploaded photos, use the photos component:
+
+```blade
+<x-dropzone-enhanced::photos
+  :object="$product"
+  :lightbox="true"
+/>
+```
+
+This component will show all uploaded images with options to:
+- View in lightbox
+- Set as main image (with toggle capability)
+- Delete
+- Reorder by drag-and-drop
 
 ### Custom Component Options
 
@@ -234,15 +282,15 @@ These URLs work consistently across different environments and domains.
 
 The package includes several routes for photo management:
 
-| Route                                 | Method | Description                        |
-| ------------------------------------- | ------ | ---------------------------------- |
-| `/admin/dropzone/upload`              | POST   | Upload a new photo                 |
-| `/admin/dropzone/photos/{id}`         | DELETE | Delete a photo                     |
-| `/admin/dropzone/photos/{id}/main`    | POST   | Toggle a photo as the main image   |
-| `/admin/dropzone/photos/{id}/is-main` | GET    | Check if a photo is marked as main |
-| `/admin/dropzone/photos/reorder`      | POST   | Reorder photos                     |
+| Route                           | Method | Description                        |
+| ------------------------------- | ------ | ---------------------------------- |
+| `/dropzone/upload`              | POST   | Upload a new photo                 |
+| `/dropzone/photos/{id}`         | DELETE | Delete a photo                     |
+| `/dropzone/photos/{id}/main`    | POST   | Toggle a photo as the main image   |
+| `/dropzone/photos/{id}/is-main` | GET    | Check if a photo is marked as main |
+| `/dropzone/photos/reorder`      | POST   | Reorder photos                     |
 
-The prefix `/admin` can be configured in the config file.
+You can add a custom prefix (like `/admin`) in the config file if needed.
 
 ## JavaScript Events
 
@@ -251,6 +299,38 @@ The package dispatches the following events:
 - `PhotoUploaded`: When a photo is successfully uploaded
 - `PhotoDeleted`: When a photo is deleted
 - `MainPhotoChanged`: When the main photo is changed
+
+## Troubleshooting
+
+### Images not showing after upload
+
+Make sure your storage is properly linked:
+
+```bash
+php artisan storage:link
+```
+
+### Upload errors with 422 response
+
+If you're getting 422 Unprocessable Content errors, check:
+- File size limits (both server and configuration)
+- Image format is supported
+- Permissions on your storage directory
+
+### Error messages appear as [object Object]
+
+Update to the latest version (1.2.0+) which includes improved error handling.
+
+### Custom upload paths
+
+If you need custom upload paths (e.g., user-specific folders), modify the directory parameter:
+
+```blade
+<x-dropzone-enhanced::area
+  :object="$product"
+  directory="products/{{ $product->id }}"
+/>
+```
 
 ## License
 
