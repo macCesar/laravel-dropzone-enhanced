@@ -2,6 +2,41 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 1.3.0 - 2025-04-12
+
+### Added
+- Added comprehensive authorization options for photo deletion
+- Added `security` section to configuration with `allow_all_authenticated_users` and `access_key` options
+- Added support for X-Access-Key header for API authorization
+- Added multiple ownership validation methods (user relationship, isAdmin, Gates, Spatie Permissions)
+- Added detailed documentation on all authorization methods in README
+- Added new configuration options for image processing in `dropzone.php`, including default dimensions, quality settings, and thumbnail configuration
+- Added improved drag-and-drop functionality using Sortable.js in `photos.blade.php`
+
+### Changed
+- Enhanced error messages in the `destroy` method with detailed context information
+- Updated `userCanDeletePhoto` method with more robust permission checks
+- Changed README to use GitHub Issues instead of email for support requests
+- Improved security by removing personal contact information from documentation
+- Refactored `area.blade.php` to streamline Dropzone initialization and improve error handling
+- Updated `lightbox.blade.php` to simplify lightbox functionality and improve accessibility
+- Enhanced `photos.blade.php` with new styles for photo actions
+- Modified `web.php` to adjust route prefixes and middleware for Dropzone routes
+- Improved DropzoneController with enhanced authorization checks for photo deletion and main photo setting
+
+### Fixed
+- Fixed session token validation to check both model ID and photo ID formats
+- Improved error handling for unauthorized deletion attempts
+
+## 1.2.1 - 2025-04-12
+
+### Added
+- Enhanced security for photo deletion with ownership verification
+- Added `userCanDeletePhoto` method to verify permissions before photo deletion
+
+### Changed
+- Improved authorization checks in the `destroy` method for better security
+
 ## 1.2.0 - 2025-04-11
 
 ### Added

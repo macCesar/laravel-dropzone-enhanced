@@ -43,20 +43,20 @@ class DropzoneController extends Controller
       // Upload file
       $file->storeAs($directory, $filename, $disk);
 
-      // Generamos thumbnails si están habilitados en la configuración
+      // Generate thumbnails if enabled in the configuration
       if (config('dropzone.images.thumbnails.enabled')) {
         $directory = dirname($fullPath);
         $filename = basename($fullPath);
         $thumbnailDimensions = config('dropzone.images.thumbnails.dimensions', '288x288');
 
-        // Crear directorio para miniaturas si no existe
+        // Generate thumbnail directory
         $thumbnailDir = $directory . '/thumbnails/' . $thumbnailDimensions;
         Storage::disk($disk)->makeDirectory($thumbnailDir);
 
-        // Ruta de la miniatura
+        // Generate thumbnail path
         $thumbnailPath = $thumbnailDir . '/' . $filename;
 
-        // Procesar con Glide si está disponible
+        // Process with Glide if available
         if (class_exists('MacCesar\LaravelGlideEnhanced\Facades\Glide')) {
           [$thumbWidth, $thumbHeight] = explode('x', $thumbnailDimensions);
 
@@ -105,11 +105,11 @@ class DropzoneController extends Controller
         'thumbnail' => $photo->getThumbnailUrl(),
       ]);
     } catch (\Exception $e) {
-      // Registrar el error completo para diagnóstico
-      \Log::error('Error en carga de imagen: ' . $e->getMessage());
-      \Log::error('Datos recibidos: ' . json_encode($request->all()));
+      // Log the complete error for debugging
+      \Log::error('Error uploading image: ' . $e->getMessage());
+      \Log::error('Received data: ' . json_encode($request->all()));
 
-      // Devolver respuesta de error con detalles
+      // Return error response with details
       return response()->json([
         'success' => false,
         'message' => $e->getMessage(),
@@ -129,10 +129,27 @@ class DropzoneController extends Controller
   {
     $photo = Photo::findOrFail($id);
 
-    // Check if the photo belongs to the authenticated user or if the user has permission
-    // This can be customized based on your app's authorization logic
+    // Get the related model
     $modelClass = $photo->photoable_type;
     $model = $modelClass::findOrFail($photo->photoable_id);
+
+    // Verify ownership or permission to delete this photo
+    if (!$this->userCanDeletePhoto($request, $photo, $model)) {
+      $message = auth()->check()
+        ? 'Unauthorized. You are logged in but do not have permission to delete this photo. You may need specific ownership or permissions.'
+        : 'Unauthorized. Authentication required or valid session token needed to delete this photo.';
+
+      return response()->json([
+        'success' => false,
+        'message' => $message,
+        'details' => [
+          'authenticated' => auth()->check(),
+          'model_type' => get_class($model),
+          'model_id' => $model->id,
+          'photo_id' => $photo->id
+        ]
+      ], 403);
+    }
 
     // Delete the photo and related files
     $success = $photo->deletePhoto();
@@ -140,6 +157,75 @@ class DropzoneController extends Controller
     return response()->json([
       'success' => $success,
     ]);
+  }
+
+  /**
+   * Check if the current user is authorized to delete the photo.
+   * This method can be extended in your application for custom authorization logic.
+   *
+   * @param \Illuminate\Http\Request $request
+   * @param \MacCesar\LaravelDropzoneEnhanced\Models\Photo $photo
+   * @param mixed $model
+   * @return bool
+   */
+  protected function userCanDeletePhoto(Request $request, Photo $photo, $model)
+  {
+    // For non-authenticated scenarios, check session tokens or custom headers
+    if (!auth()->check()) {
+      // Check both model ID and photo ID in session tokens for better flexibility
+      $sessionKey1 = "photo_access_" . get_class($model) . "_{$model->id}";
+      $sessionKey2 = "photo_access_" . get_class($model) . "_{$photo->id}";
+
+      if ($request->session()->has($sessionKey1) || $request->session()->has($sessionKey2)) {
+        return true;
+      }
+
+      // Allow API or JavaScript requests with a valid access key
+      if ($request->header('X-Access-Key') && $request->header('X-Access-Key') === config('dropzone.security.access_key', null)) {
+        return true;
+      }
+
+      return false;
+    }
+
+    // For authenticated users, check multiple ownership and permission cases
+
+    // Case 1: Direct model ownership via user_id field
+    if (isset($model->user_id) && $model->user_id === auth()->id()) {
+      return true;
+    }
+
+    // Case 2: User relationship on the model
+    if (method_exists($model, 'user') && $model->user && $model->user->id === auth()->id()) {
+      return true;
+    }
+
+    // Case 3: Custom ownership method on the model
+    if (method_exists($model, 'isOwnedBy') && $model->isOwnedBy(auth()->user())) {
+      return true;
+    }
+
+    // Case 4: User has admin status (common pattern in many apps)
+    if (method_exists(auth()->user(), 'isAdmin') && auth()->user()->isAdmin()) {
+      return true;
+    }
+
+    // Case 5: Laravel Gates integration
+    if (method_exists(auth(), 'can') && auth()->can('delete-photos')) {
+      return true;
+    }
+
+    // Case 6: Spatie Permission integration
+    if (method_exists(auth()->user(), 'hasPermissionTo') && auth()->user()->hasPermissionTo('delete photos')) {
+      return true;
+    }
+
+    // Optional config setting to allow all authenticated users (disabled by default)
+    if (config('dropzone.security.allow_all_authenticated_users', false)) {
+      return true;
+    }
+
+    return false; // Default deny if no authorization check passes
   }
 
   /**
@@ -153,7 +239,7 @@ class DropzoneController extends Controller
   {
     $photo = Photo::findOrFail($id);
 
-    // Si la foto ya es la principal, desmarcamos y terminamos (toggle)
+    // If the photo is already the main, toggle it
     if ($photo->is_main) {
       $photo->update(['is_main' => false]);
 

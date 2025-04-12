@@ -5,8 +5,8 @@ use Illuminate\Support\Facades\Route;
 use MacCesar\LaravelDropzoneEnhanced\Http\Controllers\DropzoneController;
 
 Route::group([
-  'prefix' => config('dropzone.routes.prefix', 'admin'),
-  'middleware' => config('dropzone.routes.middleware', ['web', 'auth']),
+  'prefix' => config('dropzone.routes.prefix', ''),
+  'middleware' => config('dropzone.routes.middleware', ['web']),
 ], function () {
   // Dropzone routes for file upload and management
   Route::post('dropzone/upload', [DropzoneController::class, 'upload'])->name('dropzone.upload');

@@ -51,330 +51,381 @@
 </div>
 
 @once
-  @push('styles')
-    <style>
-      .photos-container {
-        margin-top: 20px;
-      }
+  <style>
+    .photos-container {
+      margin-top: 20px;
+    }
 
-      .photos-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-        gap: 15px;
-      }
+    .photos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 15px;
+    }
 
-      .photo-item {
-        position: relative;
-        border-radius: 5px;
-        overflow: hidden;
-        aspect-ratio: 1/1;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        cursor: grab;
-        transition: all 0.2s;
-        background-color: #f8f9fa;
-      }
+    .photo-item {
+      position: relative;
+      border-radius: 5px;
+      overflow: hidden;
+      aspect-ratio: 1/1;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      cursor: grab;
+      transition: all 0.2s;
+      background-color: #f8f9fa;
+    }
 
-      .photo-item:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
-      }
+    .photo-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+    }
 
-      .photo-item.is-main {
-        border: 2px solid #0d6efd;
-      }
+    .photo-item.is-main {
+      border: 2px solid #0d6efd;
+    }
 
-      .photo-thumb {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-      }
+    .photo-thumb {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
 
-      .photo-actions {
-        position: absolute;
-        top: 5px;
-        right: 5px;
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-        opacity: 0;
-        transition: opacity 0.2s;
-        z-index: 10;
-      }
+    .photo-actions {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 10;
+    }
 
-      .photo-item:hover .photo-actions {
-        opacity: 1;
-      }
+    .photo-item:hover .photo-actions {
+      opacity: 1;
+    }
 
-      .photo-action {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        border: none;
-        background: rgba(255, 255, 255, 0.9);
-        color: #333;
-        cursor: pointer;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-        transition: all 0.2s;
-      }
+    .photo-action {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255, 255, 255, 0.9);
+      color: #333;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      transition: all 0.2s;
+    }
 
-      .photo-action:hover {
-        background: white;
-        transform: scale(1.1);
-      }
+    .photo-action:hover {
+      background: white;
+      transform: scale(1.1);
+    }
 
-      .photo-action.photo-action-main.active {
-        background: #0d6efd;
-        color: white;
-      }
+    .photo-action.photo-action-main.active {
+      background: #0d6efd;
+      color: white;
+    }
 
-      .photo-action.photo-action-delete:hover {
-        background: #dc3545;
-        color: white;
-      }
+    .photo-action.photo-action-delete:hover {
+      background: #dc3545;
+      color: white;
+    }
 
-      .photos-empty {
-        text-align: center;
-        padding: 30px;
-        color: #888;
-        background: #f9f9f9;
-        border-radius: 5px;
-        border: 1px dashed #ddd;
-      }
+    .photos-empty {
+      text-align: center;
+      padding: 30px;
+      color: #888;
+      background: #f9f9f9;
+      border-radius: 5px;
+      border: 1px dashed #ddd;
+    }
 
-      .drag-handle {
-        position: absolute;
-        bottom: 5px;
-        right: 5px;
-        width: 28px;
-        height: 28px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        background: rgba(0, 0, 0, 0.5);
-        border-radius: 4px;
-        opacity: 0;
-        transition: opacity 0.2s;
-        z-index: 10;
-        cursor: grab;
-      }
+    .drag-handle {
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 10;
+      cursor: grab;
+    }
 
-      .photo-item:hover .drag-handle {
-        opacity: 1;
-      }
+    .photo-item:hover .drag-handle {
+      opacity: 1;
+    }
 
-      .photo-item-ghost {
-        opacity: 0.5;
-      }
-    </style>
-  @endpush
+    .photo-item-ghost {
+      opacity: 0.5;
+    }
+  </style>
 
-  @push('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-    <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        // Function to initialize the photo actions
-        function initPhotoActions() {
-          const container = document.getElementById('photos-container');
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
-          if (!container) return;
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Function to initialize the photo actions
+      function initPhotoActions() {
+        const container = document.getElementById('photos-container');
 
-          // Set as main
-          container.querySelectorAll('.photo-action-main').forEach(button => {
-            button.addEventListener('click', function() {
-              const photoId = button.dataset.photoId;
-              setMainPhoto(photoId);
-            });
+        if (!container) return;
+
+        // Set as main
+        container.querySelectorAll('.photo-action-main').forEach(button => {
+          button.addEventListener('click', function() {
+            const photoId = button.dataset.photoId;
+            setMainPhoto(photoId);
           });
+        });
 
-          // Delete photo
-          container.querySelectorAll('.photo-action-delete').forEach(button => {
-            button.addEventListener('click', function() {
-              const photoId = button.dataset.photoId;
-              deletePhoto(photoId);
-            });
+        // Delete photo
+        container.querySelectorAll('.photo-action-delete').forEach(button => {
+          button.addEventListener('click', function() {
+            const photoId = button.dataset.photoId;
+            deletePhoto(photoId);
           });
+        });
 
-          // View photo in lightbox
-          container.querySelectorAll('.photo-action-view').forEach(button => {
-            button.addEventListener('click', function() {
-              const photoUrl = button.dataset.photoUrl;
-              const lightbox = document.getElementById('lightbox');
-
-              if (lightbox) {
-                const lightboxImage = document.getElementById('lightbox-image');
-                lightboxImage.src = photoUrl;
-                lightbox.classList.add('show');
-              }
-            });
+        // View photo in lightbox
+        container.querySelectorAll('.photo-action-view').forEach(button => {
+          button.addEventListener('click', function() {
+            const photoUrl = button.dataset.photoUrl;
+            showLightbox(photoUrl);
           });
+        });
 
-          // Initialize drag and drop reordering if the Sortable library is available
-          if (typeof Sortable !== 'undefined') {
-            const photosGrid = container.querySelector('.photos-grid');
-            if (photosGrid) {
-              new Sortable(photosGrid, {
-                animation: 150,
-                ghostClass: 'photo-item-ghost',
-                onEnd: function() {
-                  updatePhotoOrder();
-                }
-              });
+        // Initialize drag and drop for photo reordering
+        if (container.querySelector('.photos-grid')) {
+          new Sortable(container.querySelector('.photos-grid'), {
+            animation: 150,
+            ghostClass: 'photo-item-ghost',
+            handle: '.drag-handle',
+            onEnd: function(evt) {
+              updatePhotoOrder();
             }
-          }
+          });
         }
+      }
 
-        // Set a photo as main
-        function setMainPhoto(photoId) {
-          fetch("{{ route('dropzone.setMain', ['id' => '__id__']) }}".replace('__id__', photoId), {
-              method: 'POST',
+      // Function to show a simple lightbox
+      function showLightbox(imageUrl) {
+        // Create lightbox elements
+        const lightbox = document.createElement('div');
+        lightbox.className = 'photo-lightbox';
+        lightbox.innerHTML = `
+          <div class="photo-lightbox-backdrop"></div>
+          <div class="photo-lightbox-content">
+            <img src="${imageUrl}" alt="Lightbox image" />
+            <button class="photo-lightbox-close">&times;</button>
+          </div>
+        `;
+
+        // Add styles
+        const style = document.createElement('style');
+        style.textContent = `
+          .photo-lightbox {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .photo-lightbox-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+          }
+          .photo-lightbox-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+            z-index: 10000;
+          }
+          .photo-lightbox-content img {
+            max-width: 100%;
+            max-height: 90vh;
+            display: block;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
+          }
+          .photo-lightbox-close {
+            position: absolute;
+            top: -20px;
+            right: -20px;
+            width: 40px;
+            height: 40px;
+            background: #fff;
+            border: none;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+          }
+        `;
+
+        document.head.appendChild(style);
+        document.body.appendChild(lightbox);
+
+        // Close lightbox when clicking backdrop or close button
+        lightbox.querySelector('.photo-lightbox-backdrop').addEventListener('click', function() {
+          document.body.removeChild(lightbox);
+        });
+
+        lightbox.querySelector('.photo-lightbox-close').addEventListener('click', function() {
+          document.body.removeChild(lightbox);
+        });
+      }
+
+      // Set a photo as the main photo
+      function setMainPhoto(photoId) {
+        fetch("{{ route('dropzone.setMain', ['id' => '__id__']) }}".replace('__id__', photoId), {
+            method: 'POST',
+            headers: {
+              'X-CSRF-TOKEN': "{{ csrf_token() }}",
+              'Accept': 'application/json'
+            }
+          })
+          .then(response => response.json())
+          .then(data => {
+            // Toggle the main class on the photo item
+            document.querySelectorAll('.photo-item').forEach(item => {
+              item.classList.remove('is-main');
+              item.querySelector('.photo-action-main').classList.remove('active');
+            });
+
+            // Add main class to the current photo
+            const photoItem = document.querySelector(`.photo-item[data-photo-id="${photoId}"]`);
+            if (photoItem) {
+              photoItem.classList.add('is-main');
+              photoItem.querySelector('.photo-action-main').classList.add('active');
+            }
+          })
+          .catch(error => {
+            console.error('Error setting main photo:', error);
+          });
+      }
+
+      // Delete a photo
+      function deletePhoto(photoId) {
+        if (confirm("{{ __('dropzone-enhanced::messages.photos.confirm_delete') }}")) {
+          fetch("{{ route('dropzone.destroy', ['id' => '__id__']) }}".replace('__id__', photoId), {
+              method: 'DELETE',
               headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'X-CSRF-TOKEN': "{{ csrf_token() }}",
+                'Accept': 'application/json'
               }
             })
-            .then(response => response.json())
+            .then(response => {
+              if (!response.ok) {
+                if (response.status === 403) {
+                  // For 403 Forbidden errors, we still want to parse the JSON to get the error message
+                  return response.json().then(errorData => {
+                    throw new Error(errorData.message || 'You do not have permission to delete this photo');
+                  });
+                }
+                throw new Error('Error ' + response.status + ': ' + response.statusText);
+              }
+              return response.json();
+            })
             .then(data => {
               if (data.success) {
-                // First, remove 'is-main' and 'active' classes from all photos
-                document.querySelectorAll('.photo-item').forEach(item => {
-                  item.classList.remove('is-main');
-                  item.querySelector('.photo-action-main').classList.remove('active');
-                });
-
+                // Remove the photo from the DOM
                 const photoItem = document.querySelector(`.photo-item[data-photo-id="${photoId}"]`);
+                if (photoItem) {
+                  photoItem.remove();
+                }
 
-                // Check if the clicked photo is the same as the current main photo
-                // In that case, we are toggling OFF the main status, so we don't need to add the classes back
-                // The backend has already handled the toggle, so we only update the UI accordingly
-
-                // We need to verify if the server actually set this photo as main or unset it
-                // We'll check by making an additional request to get the current state
-                fetch("{{ route('dropzone.checkIsMain', ['id' => '__id__']) }}".replace('__id__', photoId), {
-                    method: 'GET',
-                    headers: {
-                      'Accept': 'application/json'
-                    }
-                  })
-                  .then(response => response.json())
-                  .then(checkData => {
-                    if (checkData.is_main) {
-                      // The photo is main, so add the classes
-                      if (photoItem) {
-                        photoItem.classList.add('is-main');
-                        photoItem.querySelector('.photo-action-main').classList.add('active');
-                      }
-                    }
-                    // If not main, we already removed all the classes, so do nothing
-                  })
-                  .catch(error => {
-                    console.error('Error checking main photo status:', error);
-                  });
+                // Check if there are no photos left
+                const photoItems = document.querySelectorAll('.photo-item');
+                if (photoItems.length === 0) {
+                  const photosGrid = document.querySelector('.photos-grid');
+                  if (photosGrid) {
+                    photosGrid.innerHTML = `<div class="photos-empty">{{ __('dropzone-enhanced::messages.photos.no_photos') }}</div>`;
+                  }
+                }
               }
             })
             .catch(error => {
-              console.error('Error setting main photo:', error);
+              console.error('Error deleting photo:', error);
+              alert(error.message || 'Error deleting photo. Please try again.');
             });
         }
+      }
 
-        // Delete a photo
-        function deletePhoto(photoId) {
-          if (confirm("{{ __('dropzone-enhanced::messages.photos.confirm_delete') }}")) {
-            fetch("{{ route('dropzone.destroy', ['id' => '__id__']) }}".replace('__id__', photoId), {
-                method: 'DELETE',
-                headers: {
-                  'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                  'Accept': 'application/json'
-                }
-              })
-              .then(response => response.json())
-              .then(data => {
-                if (data.success) {
-                  // Remove the photo from the DOM
-                  const photoItem = document.querySelector(`.photo-item[data-photo-id="${photoId}"]`);
-                  if (photoItem) {
-                    photoItem.remove();
-                  }
+      // Update photo order
+      function updatePhotoOrder() {
+        const container = document.getElementById('photos-container');
+        const photos = [];
 
-                  // Check if there are no photos left
-                  const photoItems = document.querySelectorAll('.photo-item');
-                  if (photoItems.length === 0) {
-                    const photosGrid = document.querySelector('.photos-grid');
-                    if (photosGrid) {
-                      photosGrid.innerHTML = `<div class="photos-empty">{{ __('dropzone-enhanced::messages.photos.no_photos') }}</div>`;
-                    }
-                  }
-                }
-              })
-              .catch(error => {
-                console.error('Error deleting photo:', error);
-              });
-          }
-        }
-
-        // Update photo order
-        function updatePhotoOrder() {
-          const container = document.getElementById('photos-container');
-          const photos = [];
-
-          // Collect photo IDs and new order
-          container.querySelectorAll('.photo-item').forEach((item, index) => {
-            photos.push({
-              id: item.dataset.photoId,
-              order: index + 1
-            });
-
-            // Update data attribute
-            item.dataset.sortOrder = index + 1;
+        // Collect photo IDs and new order
+        container.querySelectorAll('.photo-item').forEach((item, index) => {
+          photos.push({
+            id: item.dataset.photoId,
+            order: index + 1
           });
 
-          // Send to server
-          fetch("{{ route('dropzone.reorder') }}", {
-              method: 'POST',
-              headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                photos
-              })
-            })
-            .catch(error => {
-              console.error('Error updating photo order:', error);
-            });
-        }
-
-        // Initialize on load
-        initPhotoActions();
-
-        // Listen for photo updates
-        document.addEventListener('photos-updated', function() {
-          // Refresh the photos container
-          fetch(window.location.href)
-            .then(response => response.text())
-            .then(html => {
-              const parser = new DOMParser();
-              const doc = parser.parseFromString(html, 'text/html');
-              const newPhotosContainer = doc.getElementById('photos-container');
-
-              if (newPhotosContainer) {
-                const currentContainer = document.getElementById('photos-container');
-                currentContainer.outerHTML = newPhotosContainer.outerHTML;
-
-                // Reinitialize actions
-                initPhotoActions();
-              }
-            })
-            .catch(error => {
-              console.error('Error refreshing photos:', error);
-            });
+          // Update data attribute
+          item.dataset.sortOrder = index + 1;
         });
+
+        // Send to server
+        fetch("{{ route('dropzone.reorder') }}", {
+            method: 'POST',
+            headers: {
+              'X-CSRF-TOKEN': "{{ csrf_token() }}",
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              photos
+            })
+          })
+          .catch(error => {
+            console.error('Error updating photo order:', error);
+          });
+      }
+
+      // Initialize on load
+      initPhotoActions();
+
+      // Listen for photo updates
+      document.addEventListener('photos-updated', function() {
+        // Refresh the photos container
+        fetch(window.location.href)
+          .then(response => response.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newPhotosContainer = doc.getElementById('photos-container');
+
+            if (newPhotosContainer) {
+              const currentContainer = document.getElementById('photos-container');
+              currentContainer.outerHTML = newPhotosContainer.outerHTML;
+
+              // Reinitialize actions
+              initPhotoActions();
+            }
+          })
+          .catch(error => {
+            console.error('Error refreshing photos:', error);
+          });
       });
-    </script>
-  @endpush
+    });
+  </script>
 @endonce

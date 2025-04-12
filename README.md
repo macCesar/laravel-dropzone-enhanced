@@ -68,17 +68,17 @@ use MacCesar\LaravelDropzoneEnhanced\Traits\HasPhotos;
 
 class Product extends Model
 {
-    use HasPhotos;
-    // ...
+  use HasPhotos;
+  // ...
 }
 ```
 
 Then use the component in your views:
 
 ```blade
-<x-dropzone-enhanced::area 
-    :object="$product"
-    directory="products" 
+<x-dropzone-enhanced::area
+  :object="$product"
+  directory="products"
 />
 ```
 
@@ -101,7 +101,7 @@ The package is highly configurable through the `config/dropzone.php` file. All c
 return [
   'routes' => [
     'prefix' => '',  // Change route prefix if needed
-    'middleware' => ['web', 'auth'],
+    'middleware' => ['web'],
   ],
   'storage' => [
     'disk' => 'public',
@@ -118,7 +118,15 @@ return [
       'dimensions' => '288x288',
     ],
   ],
+  'security' => [
+    // If true, any authenticated user can delete photos (use with caution)
+    'allow_all_authenticated_users' => false,
+    
+    // Custom access key for API or JavaScript requests without authentication
+    'access_key' => null,
+  ],
 ];
+```
 
 ## Advanced Usage
 
@@ -144,11 +152,11 @@ composer require maccesar/laravel-glide-enhanced
 
 The package will automatically detect and use Laravel Glide Enhanced for image processing, which provides:
 
-- Dynamic image resizing and cropping
-- Format conversion (WebP, JPG, PNG)
 - Image optimization
-- Automatic caching for improved performance
 - Watermarking capabilities
+- Format conversion (WebP, JPG, PNG)
+- Dynamic image resizing and cropping
+- Automatic caching for improved performance
 
 Example of advanced usage with Laravel Glide Enhanced:
 
@@ -168,10 +176,20 @@ $optimizedUrl = ImageProcessor::webpUrl($photo->getPath(), [
 $thumbnailUrl = ImageProcessor::preset($photo->getPath(), 'thumbnail');
 
 // Generate responsive srcset attributes
+// For 1x, 2x, and 3x pixel densities (default)
 $srcset = ImageProcessor::srcset($photo->getPath(), [
-  'w' => 600,
+  'w' => 300,
   'fm' => 'webp'
 ]);
+// Output: "/img/storage/path/to/image.jpg?w=300&fm=webp 1x, /img/storage/path/to/image.jpg?w=600&fm=webp 2x, /img/storage/path/to/image.jpg?w=900&fm=webp 3x"
+
+// Control the maximum density factor (e.g., up to 2x)
+$srcset = ImageProcessor::srcset($photo->getPath(), [
+  'w' => 300,
+  'h' => 200,
+  'fm' => 'webp'
+], 2);
+// Output: "/img/storage/path/to/image.jpg?w=300&h=200&fm=webp 1x, /img/storage/path/to/image.jpg?w=600&h=400&fm=webp 2x"
 ```
 
 For complete documentation, visit the [Laravel Glide Enhanced repository](https://github.com/maccesar/laravel-glide-enhanced).
@@ -292,6 +310,206 @@ The package includes several routes for photo management:
 
 You can add a custom prefix (like `/admin`) in the config file if needed.
 
+## Security Features
+
+### Photo Deletion Protection
+
+Starting from version 1.2.1, the package includes security features to protect photo deletion:
+
+- Photos can only be deleted by users who have proper authorization
+- The `userCanDeletePhoto()` method in the controller verifies ownership permissions
+- Multiple ownership verification mechanisms are supported:
+  - User authentication check
+  - Direct model ownership (via `user_id` field)
+  - Custom ownership methods (`isOwnedBy()`)
+  - Session tokens for public forms
+
+When unauthorized deletion is attempted, a 403 Forbidden response is returned with an error message that is displayed to the user.
+
+### Allowing Photo Deletion
+
+Here are specific ways to enable photo deletion in different scenarios:
+
+#### For Authenticated Users
+
+If your application uses Laravel's authentication, ensure your models have a relationship to the user:
+
+```php
+// In your model (e.g., Product.php)
+public function user()
+{
+  return $this->belongsTo(User::class);
+}
+```
+
+Or simply add a `user_id` field to your model's table.
+
+#### For Public Forms
+
+If you need to allow deletion in public forms (without authentication), use session tokens:
+
+```php
+// When creating an entry with photos
+$sessionKey = "photo_access_" . get_class($model) . "_{$model->id}";
+$request->session()->put($sessionKey, true);
+```
+
+#### Using a Custom Controller
+
+For more advanced authorization, extend the controller:
+
+```php
+use MacCesar\LaravelDropzoneEnhanced\Http\Controllers\DropzoneController;
+
+class CustomDropzoneController extends DropzoneController
+{
+  protected function userCanDeletePhoto(Request $request, Photo $photo, $model)
+  {
+    // Example: Check if model belongs to current user
+    if (auth()->check() && $model->user_id == auth()->id()) {
+      return true;
+    }
+
+    // Example: Check if model has a specific status
+    if ($model->status == 'draft') {
+      return true;
+    }
+
+    // Example: Check against a permission system
+    if (auth()->check() && auth()->user()->can('delete-photos')) {
+      return true;
+    }
+
+    return false;
+  }
+}
+```
+
+Then, update your routes to use your custom controller:
+
+```php
+// In a service provider or routes file
+Route::delete('dropzone/photos/{id}', [CustomDropzoneController::class, 'destroy'])
+    ->name('dropzone.destroy');
+```
+
+### Customizing Authorization Logic
+
+You can extend or override the authorization logic by:
+
+1. Creating a custom controller that extends `DropzoneController`
+2. Overriding the `userCanDeletePhoto()` method
+3. Implementing your own authorization rules
+
+```php
+// In your custom controller
+protected function userCanDeletePhoto(Request $request, Photo $photo, $model)
+{
+  // Your custom authorization logic
+  return true; // Always allow (not recommended for production)
+}
+```
+
+## Photo Deletion Authorization
+
+The package includes a comprehensive authorization system for photo deletion. Here are all the supported authorization methods:
+
+### For Authenticated Users
+
+When a user is authenticated, the following checks are performed (in order):
+
+1. **Direct Model Ownership** - If the model has a `user_id` field that matches the authenticated user's ID
+   ```php
+   if (isset($model->user_id) && $model->user_id === auth()->id()) {
+     return true;
+   }
+   ```
+
+2. **User Relationship** - If the model has a `user()` relationship that returns the authenticated user
+   ```php
+   if (method_exists($model, 'user') && $model->user && $model->user->id === auth()->id()) {
+     return true;
+   }
+   ```
+
+3. **Custom Ownership Method** - If the model implements an `isOwnedBy()` method that returns true
+   ```php
+   if (method_exists($model, 'isOwnedBy') && $model->isOwnedBy(auth()->user())) {
+     return true;
+   }
+   ```
+
+4. **Admin Check** - If the authenticated user has an `isAdmin()` method that returns true
+   ```php
+   if (method_exists(auth()->user(), 'isAdmin') && auth()->user()->isAdmin()) {
+     return true;
+   }
+   ```
+
+5. **Laravel Gates** - If the user passes a `delete-photos` gate check
+   ```php
+   if (method_exists(auth(), 'can') && auth()->can('delete-photos')) {
+     return true;
+   }
+   ```
+
+6. **Spatie Permissions** - If using the Spatie Permissions package and the user has the right permission
+   ```php
+   if (method_exists(auth()->user(), 'hasPermissionTo') && auth()->user()->hasPermissionTo('delete photos')) {
+     return true;
+   }
+   ```
+
+7. **Allow All Authenticated** - If enabled in config, any authenticated user is allowed
+   ```php
+   // In config/dropzone.php
+   'security' => [
+     'allow_all_authenticated_users' => true, // Default is false
+   ],
+   ```
+
+### For Non-Authenticated Requests
+
+When no user is authenticated, the following options are available:
+
+1. **Session Tokens** - Creates a temporary token in the session for public forms
+   ```php
+   // Format 1: Using model ID
+   $sessionKey = "photo_access_" . get_class($model) . "_{$model->id}";
+   session()->put($sessionKey, true);
+   
+   // Format 2: Using photo ID (also supported)
+   $sessionKey = "photo_access_" . get_class($model) . "_{$photo->id}";
+   session()->put($sessionKey, true);
+   ```
+
+2. **Access Key Header** - For API or JavaScript requests
+   ```php
+   // In config/dropzone.php
+   'security' => [
+     'access_key' => env('DROPZONE_ACCESS_KEY', 'your-secret-key'),
+   ]
+   
+   // Then in fetch or axios requests:
+   headers: {
+     'X-Access-Key': 'your-secret-key'
+   }
+   ```
+
+3. **Custom Controller Logic** - Override the controller to implement your own authorization
+   ```php
+   class CustomDropzoneController extends DropzoneController
+   {
+     protected function userCanDeletePhoto(Request $request, Photo $photo, $model)
+     {
+       // Your custom logic here
+       return true;
+     }
+   }
+   ```
+
+When authorization fails, a detailed 403 response is returned with information about why the deletion was not permitted.
+
 ## JavaScript Events
 
 The package dispatches the following events:
@@ -332,6 +550,82 @@ If you need custom upload paths (e.g., user-specific folders), modify the direct
 />
 ```
 
+## Projects Without Authentication
+
+If your project doesn't use any authentication system, you have several options:
+
+1. **Use Session Tokens** (simplest approach):
+
+```php
+// In your controller when showing the form with photos
+public function show($id)
+{
+  $product = Product::findOrFail($id);
+
+  // Create a session token to allow photo management
+  $sessionKey = "photo_access_" . get_class($product) . "_{$product->id}";
+  session()->put($sessionKey, true);
+
+  return view('products.show', compact('product'));
+}
+```
+
+2. **Use the Package's Access Key** (for API or JavaScript requests):
+
+Configure a custom access key in your `config/dropzone.php`:
+
+```php
+'security' => [
+  'access_key' => env('DROPZONE_ACCESS_KEY', 'your-secret-key'),
+],
+```
+
+Then, when making requests to delete photos, include this key in the X-Access-Key header:
+
+```js
+fetch('/dropzone/photos/' + photoId, {
+  method: 'DELETE',
+  headers: {
+    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+    'X-Access-Key': '{{ config("dropzone.security.access_key") }}'
+  }
+})
+```
+
+This approach is especially useful for:
+- Single-page applications
+- API-based projects
+- Forms that don't have user authentication
+
+3. **Create a Custom Controller**:
+
+```php
+// In your AppServiceProvider or a custom service provider
+public function boot()
+{
+  // Override the controller
+  $this->app->singleton('MacCesar\LaravelDropzoneEnhanced\Http\Controllers\DropzoneController', function ($app) {
+    return new class extends \MacCesar\LaravelDropzoneEnhanced\Http\Controllers\DropzoneController {
+      protected function userCanDeletePhoto(Request $request, Photo $photo, $model)
+      {
+        // Allow all deletions (use with caution!)
+        return true;
+
+        // OR: Check against some condition
+        return $model->created_at->isToday();
+
+        // OR: Use request data for validation
+        return $request->has('secret_token') && $request->secret_token === 'your-secret-key';
+      }
+    };
+  });
+}
+```
+
+## Support
+
+If you discover any issues with this package, including bugs, feature requests, or questions, please create an issue on the [GitHub repository](https://github.com/maccesar/laravel-dropzone-enhanced/issues).
+
 ## License
 
 The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
@@ -345,7 +639,3 @@ The MIT License (MIT). Please see [License File](LICENSE.md) for more informatio
 ## Contributing
 
 Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
-## Security
-
-If you discover any security related issues, please email contact@maccesar.com instead of using the issue tracker.

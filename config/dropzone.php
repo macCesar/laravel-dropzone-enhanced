@@ -16,19 +16,6 @@ return [
 
   /*
   |--------------------------------------------------------------------------
-  | Storage
-  |--------------------------------------------------------------------------
-  |
-  | Configuration for image storage
-  |
-  */
-  'storage' => [
-    'disk' => 'public',
-    'directory' => 'images',
-  ],
-
-  /*
-  |--------------------------------------------------------------------------
   | Images
   |--------------------------------------------------------------------------
   |
@@ -45,5 +32,34 @@ return [
       'enabled' => true,
       'dimensions' => '288x288',
     ],
+  ],
+
+  /*
+  |--------------------------------------------------------------------------
+  | Storage
+  |--------------------------------------------------------------------------
+  |
+  | Configuration for image storage
+  |
+  */
+  'storage' => [
+    'disk' => 'public',
+    'directory' => 'images',
+  ],
+
+  /*
+  |--------------------------------------------------------------------------
+  | Security
+  |--------------------------------------------------------------------------
+  |
+  | Security settings for authorization and access control
+  |
+  */
+  'security' => [
+    // If true, any authenticated user can delete photos (use with caution)
+    'allow_all_authenticated_users' => false,
+
+    // Custom access key for API or JavaScript requests
+    'access_key' => null,
   ],
 ];
