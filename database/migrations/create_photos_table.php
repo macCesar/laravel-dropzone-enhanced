@@ -14,6 +14,8 @@ return new class extends Migration
     Schema::create('photos', function (Blueprint $table) {
       $table->id();
       $table->morphs('photoable');
+      $table->unsignedBigInteger('user_id')->nullable();
+      $table->foreign('user_id')->references('id')->on('users')->onDelete('set null');
       $table->string('filename');
       $table->string('original_filename');
       $table->string('disk')->default('public');

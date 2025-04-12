@@ -20,20 +20,20 @@ class DropzoneController extends Controller
   {
     try {
       $request->validate([
-        'file' => 'required|file|image|max:' . config('dropzone.images.max_filesize', 5000),
+        'directory' => 'required|string',
         'model_id' => 'required|integer',
         'model_type' => 'required|string',
-        'directory' => 'required|string',
         'dimensions' => 'nullable|string',
+        'file' => 'required|file|image|max:' . config('dropzone.images.max_filesize', 5000),
       ]);
 
       // Get upload parameters
       $file = $request->file('file');
       $modelId = $request->input('model_id');
-      $modelType = $request->input('model_type');
       $directory = $request->input('directory');
-      $dimensions = $request->input('dimensions', config('dropzone.images.default_dimensions'));
+      $modelType = $request->input('model_type');
       $disk = config('dropzone.storage.disk', 'public');
+      $dimensions = $request->input('dimensions', config('dropzone.images.default_dimensions'));
 
       // Generate a unique filename
       $extension = $file->getClientOriginalExtension();
@@ -62,9 +62,9 @@ class DropzoneController extends Controller
 
           \MacCesar\LaravelGlideEnhanced\Facades\Glide::load($fullPath, $disk)
             ->modify([
+              'fit' => 'crop',
               'w' => $thumbWidth,
               'h' => $thumbHeight,
-              'fit' => 'crop',
               'q' => config('dropzone.images.quality', 90),
             ])
             ->save($thumbnailPath);
@@ -77,19 +77,23 @@ class DropzoneController extends Controller
       $height = $imageSize[1];
       $size = $file->getSize();
 
+      // Set user_id from authenticated user if available
+      $userId = auth()->check() ? auth()->id() : null;
+
       // Create photo record
       $photo = Photo::create([
-        'photoable_id' => $modelId,
-        'photoable_type' => $modelType,
-        'filename' => $filename,
-        'original_filename' => $file->getClientOriginalName(),
         'disk' => $disk,
-        'directory' => $directory,
-        'extension' => $extension,
-        'mime_type' => $file->getMimeType(),
         'size' => $size,
         'width' => $width,
         'height' => $height,
+        'user_id' => $userId,
+        'filename' => $filename,
+        'extension' => $extension,
+        'directory' => $directory,
+        'photoable_id' => $modelId,
+        'photoable_type' => $modelType,
+        'mime_type' => $file->getMimeType(),
+        'original_filename' => $file->getClientOriginalName(),
         'sort_order' => Photo::where('photoable_id', $modelId)
           ->where('photoable_type', $modelType)
           ->count() + 1,
@@ -185,10 +189,23 @@ class DropzoneController extends Controller
         return true;
       }
 
+      // If the photo doesn't have a user_id, anyone can delete it
+      if (is_null($photo->user_id)) {
+        return true;
+      }
+
       return false;
     }
 
-    // For authenticated users, check multiple ownership and permission cases
+    // If the photo doesn't have a user_id, allow any authenticated user to delete it
+    if (is_null($photo->user_id)) {
+      return true;
+    }
+
+    // Check if the photo belongs to the authenticated user
+    if ($photo->user_id === auth()->id()) {
+      return true;
+    }
 
     // Case 1: Direct model ownership via user_id field
     if (isset($model->user_id) && $model->user_id === auth()->id()) {
@@ -238,13 +255,15 @@ class DropzoneController extends Controller
   public function setMain(Request $request, $id)
   {
     $photo = Photo::findOrFail($id);
+    $isMain = $photo->is_main;
 
     // If the photo is already the main, toggle it
-    if ($photo->is_main) {
+    if ($isMain) {
       $photo->update(['is_main' => false]);
 
       return response()->json([
         'success' => true,
+        'is_main' => false
       ]);
     }
 
@@ -258,6 +277,7 @@ class DropzoneController extends Controller
 
     return response()->json([
       'success' => true,
+      'is_main' => true
     ]);
   }
 
@@ -291,13 +311,20 @@ class DropzoneController extends Controller
       'photos.*.order' => 'required|integer',
     ]);
 
-    foreach ($request->photos as $item) {
-      Photo::where('id', $item['id'])->update(['sort_order' => $item['order']]);
-    }
+    try {
+      foreach ($request->photos as $item) {
+        Photo::where('id', $item['id'])->update(['sort_order' => $item['order']]);
+      }
 
-    return response()->json([
-      'success' => true,
-    ]);
+      return response()->json([
+        'success' => true,
+      ]);
+    } catch (\Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => $e->getMessage()
+      ], 500);
+    }
   }
 
   /**

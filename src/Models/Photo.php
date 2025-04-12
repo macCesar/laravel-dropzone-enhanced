@@ -18,6 +18,7 @@ class Photo extends Model
   protected $fillable = [
     'photoable_id',
     'photoable_type',
+    'user_id',
     'filename',
     'original_filename',
     'disk',
@@ -50,6 +51,7 @@ class Photo extends Model
    * @property int $id
    * @property string $photoable_type
    * @property int $photoable_id
+   * @property int $user_id
    * @property string $filename
    * @property string $original_filename
    * @property string $disk
@@ -74,14 +76,35 @@ class Photo extends Model
   }
 
   /**
+   * Get the user who uploaded the photo.
+   *
+   * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+   */
+  public function user()
+  {
+    return $this->belongsTo(config('auth.providers.users.model'));
+  }
+
+  /**
    * Get the URL for the photo.
    *
    * @return string
    */
   public function getUrl()
   {
-    // Use relative URL to avoid domain mismatches between localhost and local domains
-    return '/storage/' . $this->getPath();
+    // Si estamos en un entorno local y accediendo desde un dominio no-localhost
+    if (request()->getHost() !== 'localhost' && config('app.url') === 'http://localhost') {
+      // Construir manualmente la URL con el dominio correcto
+      return request()->getSchemeAndHttpHost() . '/storage/' . $this->getPath();
+    }
+
+    // Si LaravelGlideEnhanced está disponible, usarlo (solo cuando no estamos en el caso anterior)
+    if (class_exists('MacCesar\LaravelGlideEnhanced\Facades\ImageProcessor')) {
+      return \MacCesar\LaravelGlideEnhanced\Facades\ImageProcessor::url($this->getPath(), ['fm' => 'keep']);
+    }
+
+    // Fallback a Storage
+    return Storage::disk($this->disk)->url($this->getPath());
   }
 
   /**
@@ -98,28 +121,68 @@ class Photo extends Model
    * Get the thumbnail URL for the photo.
    *
    * @param string|null $dimensions
-   * @return string|null
+   * @return string
    */
   public function getThumbnailUrl($dimensions = null)
   {
+    // Set default dimensions from config if not provided
+    if (!$dimensions) {
+      $dimensions = config('dropzone.images.thumbnails.dimensions', '288x288');
+    }
+
+    // Check if thumbnails are disabled in config
     if (!config('dropzone.images.thumbnails.enabled')) {
       return $this->getUrl();
     }
 
-    $dimensions = $dimensions ?? config('dropzone.images.thumbnails.dimensions');
-    $thumbnailPath = $this->directory . '/thumbnails/' . $dimensions . '/' . $this->filename;
+    // Build thumbnail path
+    $directory = dirname($this->getPath());
+    $filename = basename($this->getPath());
+    $thumbnailPath = $directory . '/thumbnails/' . $dimensions . '/' . $filename;
 
-    // Use relative URL for thumbnails as well
-    if (Storage::disk($this->disk)->exists($thumbnailPath)) {
-      return '/storage/' . $thumbnailPath;
+    // Si estamos en un entorno local y accediendo desde un dominio no-localhost
+    if (request()->getHost() !== 'localhost' && config('app.url') === 'http://localhost') {
+      // Si el thumbnail existe, construir manualmente la URL
+      if (Storage::disk($this->disk)->exists($thumbnailPath)) {
+        return request()->getSchemeAndHttpHost() . '/storage/' . $thumbnailPath;
+      }
+
+      // Si no existe thumbnail y tampoco GlideEnhanced, usar la imagen original
+      if (!class_exists('MacCesar\LaravelGlideEnhanced\Facades\ImageProcessor')) {
+        return $this->getUrl();
+      }
+
+      // Usar ImageProcessor con dominio corregido manualmente
+      [$thumbWidth, $thumbHeight] = explode('x', $dimensions);
+      $url = \MacCesar\LaravelGlideEnhanced\Facades\ImageProcessor::url($this->getPath(), [
+        'w' => $thumbWidth,
+        'h' => $thumbHeight,
+        'fit' => 'crop',
+        'q' => config('dropzone.images.quality', 90),
+      ]);
+
+      // Reemplazar manualmente localhost con el host actual
+      return str_replace(config('app.url'), request()->getSchemeAndHttpHost(), $url);
     }
 
-    // If Glide is available, generate thumbnail on the fly
-    if (class_exists('MacCesar\LaravelGlideEnhanced\Facades\Glide')) {
-      return route('dropzone.image', [
-        'path' => $this->getPath(),
-        'w' => explode('x', $dimensions)[0],
-        'h' => explode('x', $dimensions)[1],
+    // Flujo normal (no estamos en localhost o accedemos desde localhost)
+
+    // If the thumbnail exists, return its URL
+    if (Storage::disk($this->disk)->exists($thumbnailPath)) {
+      return Storage::disk($this->disk)->url($thumbnailPath);
+    }
+
+    // Check if we have Laravel Glide Enhanced installed
+    if (class_exists('MacCesar\LaravelGlideEnhanced\Facades\ImageProcessor')) {
+      // Parse dimensions to get width and height
+      [$thumbWidth, $thumbHeight] = explode('x', $dimensions);
+
+      // Use the URL builder from Laravel Glide Enhanced
+      return \MacCesar\LaravelGlideEnhanced\Facades\ImageProcessor::url($this->getPath(), [
+        'w' => $thumbWidth,
+        'h' => $thumbHeight,
+        'fit' => 'crop',
+        'q' => config('dropzone.images.quality', 90),
       ]);
     }
 
@@ -134,26 +197,25 @@ class Photo extends Model
    */
   public function deletePhoto()
   {
-    // Delete the original file
-    Storage::disk($this->disk)->delete($this->getPath());
+    // Get all paths to delete (original and thumbnails)
+    $paths = [$this->getPath()];
 
-    // Delete thumbnails if they exist
-    if (config('dropzone.images.thumbnails.enabled')) {
-      $thumbnailDirectory = $this->directory . '/thumbnails';
+    // Find and add thumbnail paths if they exist
+    $directory = dirname($this->getPath());
+    $filename = basename($this->getPath());
 
-      // Check if the thumbnail directory exists
-      if (Storage::disk($this->disk)->exists($thumbnailDirectory)) {
-        // Get all dimension directories
-        $dimensionDirs = Storage::disk($this->disk)->directories($thumbnailDirectory);
+    // Add default thumbnail dimension
+    $defaultDimensions = config('dropzone.images.thumbnails.dimensions', '288x288');
+    $paths[] = $directory . '/thumbnails/' . $defaultDimensions . '/' . $filename;
 
-        // Delete the thumbnail in each dimension directory
-        foreach ($dimensionDirs as $dimDir) {
-          Storage::disk($this->disk)->delete($dimDir . '/' . $this->filename);
-        }
+    // Delete all files from storage
+    foreach ($paths as $path) {
+      if (Storage::disk($this->disk)->exists($path)) {
+        Storage::disk($this->disk)->delete($path);
       }
     }
 
-    // Delete the model
+    // Delete the database record
     return $this->delete();
   }
 }

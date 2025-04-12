@@ -57,20 +57,20 @@
     }
 
     .photos-grid {
+      gap: 15px;
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 15px;
     }
 
     .photo-item {
-      position: relative;
-      border-radius: 5px;
+      cursor: default;
       overflow: hidden;
       aspect-ratio: 1/1;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-      cursor: grab;
+      position: relative;
+      border-radius: 5px;
       transition: all 0.2s;
       background-color: #f8f9fa;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .photo-item:hover {
@@ -89,15 +89,15 @@
     }
 
     .photo-actions {
-      position: absolute;
+      gap: 5px;
       top: 5px;
       right: 5px;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
       opacity: 0;
-      transition: opacity 0.2s;
       z-index: 10;
+      display: flex;
+      position: absolute;
+      flex-direction: column;
+      transition: opacity 0.2s;
     }
 
     .photo-item:hover .photo-actions {
@@ -105,18 +105,18 @@
     }
 
     .photo-action {
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      color: #333;
       width: 28px;
       height: 28px;
-      border-radius: 50%;
       border: none;
-      background: rgba(255, 255, 255, 0.9);
-      color: #333;
+      display: flex;
       cursor: pointer;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      border-radius: 50%;
+      align-items: center;
       transition: all 0.2s;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     }
 
     .photo-action:hover {
@@ -135,34 +135,39 @@
     }
 
     .photos-empty {
-      text-align: center;
-      padding: 30px;
       color: #888;
-      background: #f9f9f9;
+      padding: 30px;
+      text-align: center;
       border-radius: 5px;
+      background: #f9f9f9;
       border: 1px dashed #ddd;
     }
 
     .drag-handle {
-      position: absolute;
-      bottom: 5px;
+      opacity: 0;
       right: 5px;
+      z-index: 10;
+      bottom: 5px;
       width: 28px;
       height: 28px;
+      color: white;
+      cursor: grab;
       display: flex;
+      position: absolute;
+      border-radius: 4px;
       align-items: center;
       justify-content: center;
-      color: white;
-      background: rgba(0, 0, 0, 0.5);
-      border-radius: 4px;
-      opacity: 0;
       transition: opacity 0.2s;
-      z-index: 10;
-      cursor: grab;
+      background: rgba(0, 0, 0, 0.5);
     }
 
     .photo-item:hover .drag-handle {
       opacity: 1;
+    }
+
+    .drag-handle:hover {
+      transform: scale(1.1);
+      background: rgba(0, 0, 0, 0.8);
     }
 
     .photo-item-ghost {
@@ -178,7 +183,10 @@
       function initPhotoActions() {
         const container = document.getElementById('photos-container');
 
-        if (!container) return;
+        if (!container) {
+          console.error('Photos container not found');
+          return;
+        }
 
         // Set as main
         container.querySelectorAll('.photo-action-main').forEach(button => {
@@ -205,15 +213,26 @@
         });
 
         // Initialize drag and drop for photo reordering
-        if (container.querySelector('.photos-grid')) {
-          new Sortable(container.querySelector('.photos-grid'), {
-            animation: 150,
-            ghostClass: 'photo-item-ghost',
-            handle: '.drag-handle',
-            onEnd: function(evt) {
-              updatePhotoOrder();
-            }
-          });
+        const photosGrid = container.querySelector('.photos-grid');
+        if (photosGrid) {
+          try {
+            const sortable = new Sortable(photosGrid, {
+              animation: 150,
+              ghostClass: 'photo-item-ghost',
+              handle: '.drag-handle',
+              onStart: function(evt) {},
+              onEnd: function(evt) {
+                updatePhotoOrder();
+              }
+            });
+
+            // Save global reference for debugging
+            window.photoSortable = sortable;
+          } catch (error) {
+            console.error('Error initializing Sortable:', error);
+          }
+        } else {
+          console.warn('Photos grid element not found');
         }
       }
 
@@ -234,47 +253,47 @@
         const style = document.createElement('style');
         style.textContent = `
           .photo-lightbox {
-            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             z-index: 9999;
             display: flex;
+            position: fixed;
             align-items: center;
             justify-content: center;
           }
           .photo-lightbox-backdrop {
-            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
+            position: absolute;
             background: rgba(0, 0, 0, 0.8);
           }
           .photo-lightbox-content {
-            position: relative;
+            z-index: 10000;
             max-width: 90%;
             max-height: 90%;
-            z-index: 10000;
+            position: relative;
           }
           .photo-lightbox-content img {
+            display: block;
             max-width: 100%;
             max-height: 90vh;
-            display: block;
             box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
           }
           .photo-lightbox-close {
-            position: absolute;
             top: -20px;
-            right: -20px;
             width: 40px;
+            right: -20px;
             height: 40px;
-            background: #fff;
             border: none;
-            border-radius: 50%;
-            font-size: 24px;
             cursor: pointer;
+            font-size: 24px;
+            background: #fff;
+            position: absolute;
+            border-radius: 50%;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
           }
         `;
@@ -297,23 +316,31 @@
         fetch("{{ route('dropzone.setMain', ['id' => '__id__']) }}".replace('__id__', photoId), {
             method: 'POST',
             headers: {
-              'X-CSRF-TOKEN': "{{ csrf_token() }}",
-              'Accept': 'application/json'
+              'Accept': 'application/json',
+              'X-CSRF-TOKEN': "{{ csrf_token() }}"
             }
           })
           .then(response => response.json())
           .then(data => {
-            // Toggle the main class on the photo item
-            document.querySelectorAll('.photo-item').forEach(item => {
-              item.classList.remove('is-main');
-              item.querySelector('.photo-action-main').classList.remove('active');
-            });
+            // If server returns success, update UI accordingly
+            if (data.success) {
+              // Check if this image was the main one and is being unmarked
+              const photoItem = document.querySelector(`.photo-item[data-photo-id="${photoId}"]`);
+              const wasMain = photoItem && photoItem.classList.contains('is-main');
 
-            // Add main class to the current photo
-            const photoItem = document.querySelector(`.photo-item[data-photo-id="${photoId}"]`);
-            if (photoItem) {
-              photoItem.classList.add('is-main');
-              photoItem.querySelector('.photo-action-main').classList.add('active');
+              // Deactivate all images
+              document.querySelectorAll('.photo-item').forEach(item => {
+                item.classList.remove('is-main');
+                item.querySelector('.photo-action-main').classList.remove('active');
+              });
+
+              // If not unmarking, set the new main
+              if (!wasMain || (wasMain && data.is_main)) {
+                if (photoItem) {
+                  photoItem.classList.add('is-main');
+                  photoItem.querySelector('.photo-action-main').classList.add('active');
+                }
+              }
             }
           })
           .catch(error => {
@@ -327,8 +354,8 @@
           fetch("{{ route('dropzone.destroy', ['id' => '__id__']) }}".replace('__id__', photoId), {
               method: 'DELETE',
               headers: {
-                'X-CSRF-TOKEN': "{{ csrf_token() }}",
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': "{{ csrf_token() }}"
               }
             })
             .then(response => {
@@ -375,34 +402,59 @@
 
         // Collect photo IDs and new order
         container.querySelectorAll('.photo-item').forEach((item, index) => {
+          const order = index + 1;
+          const id = item.dataset.photoId;
+
           photos.push({
-            id: item.dataset.photoId,
-            order: index + 1
+            id: id,
+            order: order
           });
 
           // Update data attribute
-          item.dataset.sortOrder = index + 1;
+          item.dataset.sortOrder = order;
+        });
+
+        const requestBody = JSON.stringify({
+          photos
         });
 
         // Send to server
         fetch("{{ route('dropzone.reorder') }}", {
             method: 'POST',
             headers: {
-              'X-CSRF-TOKEN': "{{ csrf_token() }}",
               'Accept': 'application/json',
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': "{{ csrf_token() }}"
             },
-            body: JSON.stringify({
-              photos
-            })
+            body: requestBody
           })
+          .then(response => {
+            if (!response.ok) {
+              return response.text().then(text => {
+                console.error('Error in response text:', text);
+                throw new Error(`Server response error: ${response.status} ${response.statusText} - ${text}`);
+              });
+            }
+            return response.json();
+          })
+          .then(data => {})
           .catch(error => {
-            console.error('Error updating photo order:', error);
+            alert('Error updating order: ' + error.message);
           });
       }
 
-      // Initialize on load
-      initPhotoActions();
+      // Wait for SortableJS to load
+      function checkSortableLoaded() {
+        if (typeof Sortable !== 'undefined') {
+          // Initialize on load
+          initPhotoActions();
+        } else {
+          console.error('SortableJS failed to load');
+          setTimeout(checkSortableLoaded, 500);
+        }
+      }
+
+      checkSortableLoaded();
 
       // Listen for photo updates
       document.addEventListener('photos-updated', function() {
