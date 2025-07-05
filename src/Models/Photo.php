@@ -95,7 +95,8 @@ class Photo extends Model
     // Si estamos en un entorno local y accediendo desde un dominio no-localhost
     if (request()->getHost() !== 'localhost' && config('app.url') === 'http://localhost') {
       // Construir manualmente la URL con el dominio correcto
-      return request()->getSchemeAndHttpHost() . '/storage/' . $this->getPath();
+      $baseUrl = rtrim(request()->getSchemeAndHttpHost(), '/');
+      return $baseUrl . '/storage/' . $this->getPath();
     }
 
     // Usar Storage directamente, sin integración con otros paquetes
@@ -139,7 +140,8 @@ class Photo extends Model
     if (request()->getHost() !== 'localhost' && config('app.url') === 'http://localhost') {
       // Si el thumbnail existe, construir manualmente la URL
       if (Storage::disk($this->disk)->exists($thumbnailPath)) {
-        return request()->getSchemeAndHttpHost() . '/storage/' . $thumbnailPath;
+        $baseUrl = rtrim(request()->getSchemeAndHttpHost(), '/');
+        return $baseUrl . '/storage/' . $thumbnailPath;
       }
       // Si no existe thumbnail, usar la imagen original
       return $this->getUrl();
