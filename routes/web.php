@@ -14,9 +14,4 @@ Route::group([
   Route::post('dropzone/photos/{id}/main', [DropzoneController::class, 'setMain'])->name('dropzone.setMain');
   Route::get('dropzone/photos/{id}/is-main', [DropzoneController::class, 'checkIsMain'])->name('dropzone.checkIsMain');
   Route::post('dropzone/photos/reorder', [DropzoneController::class, 'reorder'])->name('dropzone.reorder');
-
-  // Image serving route (used with Glide)
-  Route::get('dropzone/image/{path}', [DropzoneController::class, 'serveImage'])
-    ->where('path', '.*')
-    ->name('dropzone.image');
 });

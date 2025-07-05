@@ -95,15 +95,11 @@ class Photo extends Model
     // Si estamos en un entorno local y accediendo desde un dominio no-localhost
     if (request()->getHost() !== 'localhost' && config('app.url') === 'http://localhost') {
       // Construir manualmente la URL con el dominio correcto
-      return request()->getSchemeAndHttpHost() . '/storage/' . $this->getPath();
+      $baseUrl = rtrim(request()->getSchemeAndHttpHost(), '/');
+      return $baseUrl . '/storage/' . $this->getPath();
     }
 
-    // Si LaravelGlideEnhanced está disponible, usarlo (solo cuando no estamos en el caso anterior)
-    if (class_exists('MacCesar\LaravelGlideEnhanced\Facades\ImageProcessor')) {
-      return \MacCesar\LaravelGlideEnhanced\Facades\ImageProcessor::url($this->getPath(), ['fm' => 'keep']);
-    }
-
-    // Fallback a Storage
+    // Usar Storage directamente, sin integración con otros paquetes
     return Storage::disk($this->disk)->url($this->getPath());
   }
 
@@ -144,49 +140,19 @@ class Photo extends Model
     if (request()->getHost() !== 'localhost' && config('app.url') === 'http://localhost') {
       // Si el thumbnail existe, construir manualmente la URL
       if (Storage::disk($this->disk)->exists($thumbnailPath)) {
-        return request()->getSchemeAndHttpHost() . '/storage/' . $thumbnailPath;
+        $baseUrl = rtrim(request()->getSchemeAndHttpHost(), '/');
+        return $baseUrl . '/storage/' . $thumbnailPath;
       }
-
-      // Si no existe thumbnail y tampoco GlideEnhanced, usar la imagen original
-      if (!class_exists('MacCesar\LaravelGlideEnhanced\Facades\ImageProcessor')) {
-        return $this->getUrl();
-      }
-
-      // Usar ImageProcessor con dominio corregido manualmente
-      [$thumbWidth, $thumbHeight] = explode('x', $dimensions);
-      $url = \MacCesar\LaravelGlideEnhanced\Facades\ImageProcessor::url($this->getPath(), [
-        'w' => $thumbWidth,
-        'h' => $thumbHeight,
-        'fit' => 'crop',
-        'q' => config('dropzone.images.quality', 90),
-      ]);
-
-      // Reemplazar manualmente localhost con el host actual
-      return str_replace(config('app.url'), request()->getSchemeAndHttpHost(), $url);
+      // Si no existe thumbnail, usar la imagen original
+      return $this->getUrl();
     }
 
-    // Flujo normal (no estamos en localhost o accedemos desde localhost)
-
-    // If the thumbnail exists, return its URL
+    // Flujo normal: If the thumbnail exists, return its URL
     if (Storage::disk($this->disk)->exists($thumbnailPath)) {
       return Storage::disk($this->disk)->url($thumbnailPath);
     }
 
-    // Check if we have Laravel Glide Enhanced installed
-    if (class_exists('MacCesar\LaravelGlideEnhanced\Facades\ImageProcessor')) {
-      // Parse dimensions to get width and height
-      [$thumbWidth, $thumbHeight] = explode('x', $dimensions);
-
-      // Use the URL builder from Laravel Glide Enhanced
-      return \MacCesar\LaravelGlideEnhanced\Facades\ImageProcessor::url($this->getPath(), [
-        'w' => $thumbWidth,
-        'h' => $thumbHeight,
-        'fit' => 'crop',
-        'q' => config('dropzone.images.quality', 90),
-      ]);
-    }
-
-    // Fallback to original image
+    // Fallback to original image (no dynamic thumbnail generation)
     return $this->getUrl();
   }
 

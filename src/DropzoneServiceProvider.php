@@ -38,7 +38,10 @@ class DropzoneServiceProvider extends ServiceProvider
     // Load translations
     $this->loadTranslationsFrom(__DIR__ . '/../resources/lang', 'dropzone-enhanced');
 
-    // Load migrations
+    // Load migrations automatically
+    $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
+
+    // Also publish migrations for customization if needed
     if ($this->app->runningInConsole()) {
       $this->publishes([
         __DIR__ . '/../database/migrations' => database_path('migrations'),

@@ -5,8 +5,10 @@ namespace MacCesar\LaravelDropzoneEnhanced\Http\Controllers;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use MacCesar\LaravelDropzoneEnhanced\Models\Photo;
+use MacCesar\LaravelDropzoneEnhanced\Services\ImageProcessor;
 
 class DropzoneController extends Controller
 {
@@ -53,21 +55,21 @@ class DropzoneController extends Controller
         $thumbnailDir = $directory . '/thumbnails/' . $thumbnailDimensions;
         Storage::disk($disk)->makeDirectory($thumbnailDir);
 
-        // Generate thumbnail path
+        // Generate thumbnail using native GD
         $thumbnailPath = $thumbnailDir . '/' . $filename;
+        [$thumbWidth, $thumbHeight] = explode('x', $thumbnailDimensions);
 
-        // Process with Glide if available
-        if (class_exists('MacCesar\LaravelGlideEnhanced\Facades\Glide')) {
-          [$thumbWidth, $thumbHeight] = explode('x', $thumbnailDimensions);
+        $thumbnailGenerated = ImageProcessor::generateThumbnail(
+          $fullPath,
+          $thumbnailPath,
+          (int) $thumbWidth,
+          (int) $thumbHeight,
+          $disk,
+          config('dropzone.images.quality', 90)
+        );
 
-          \MacCesar\LaravelGlideEnhanced\Facades\Glide::load($fullPath, $disk)
-            ->modify([
-              'fit' => 'crop',
-              'w' => $thumbWidth,
-              'h' => $thumbHeight,
-              'q' => config('dropzone.images.quality', 90),
-            ])
-            ->save($thumbnailPath);
+        if (!$thumbnailGenerated) {
+          \Log::warning('Failed to generate thumbnail for: ' . $fullPath);
         }
       }
 
@@ -77,16 +79,12 @@ class DropzoneController extends Controller
       $height = $imageSize[1];
       $size = $file->getSize();
 
-      // Set user_id from authenticated user if available
-      $userId = auth()->check() ? auth()->id() : null;
-
-      // Create photo record
-      $photo = Photo::create([
+      // Prepare photo data
+      $photoData = [
         'disk' => $disk,
         'size' => $size,
         'width' => $width,
         'height' => $height,
-        'user_id' => $userId,
         'filename' => $filename,
         'extension' => $extension,
         'directory' => $directory,
@@ -100,7 +98,21 @@ class DropzoneController extends Controller
         'is_main' => Photo::where('photoable_id', $modelId)
           ->where('photoable_type', $modelType)
           ->count() == 0, // First photo is main by default
-      ]);
+      ];
+
+      // Only add user_id if the column exists and auth is available (full compatibility)
+      if (Schema::hasColumn('photos', 'user_id')) {
+        try {
+          $userId = auth()->check() ? auth()->id() : null;
+          $photoData['user_id'] = $userId;
+        } catch (\Exception $e) {
+          // If auth fails (no guards, public site, etc.), just ignore user_id
+          // This ensures the package works in ANY environment
+        }
+      }
+
+      // Create photo record
+      $photo = Photo::create($photoData);
 
       return response()->json([
         'success' => true,
@@ -174,11 +186,19 @@ class DropzoneController extends Controller
    */
   protected function userCanDeletePhoto(Request $request, Photo $photo, $model)
   {
+    // For public sites or sites without authentication, allow deletion by default
+    try {
+      $isAuthenticated = auth()->check();
+    } catch (\Exception $e) {
+      // If auth system is not configured, allow deletion (public site)
+      return true;
+    }
+
     // For non-authenticated scenarios, check session tokens or custom headers
-    if (!auth()->check()) {
+    if (!$isAuthenticated) {
       // Check both model ID and photo ID in session tokens for better flexibility
       $sessionKey1 = "photo_access_" . get_class($model) . "_{$model->id}";
-      $sessionKey2 = "photo_access_" . get_class($model) . "_{$photo->id}";
+      $sessionKey2 = "photo_access_photo_{$photo->id}";
 
       if ($request->session()->has($sessionKey1) || $request->session()->has($sessionKey2)) {
         return true;
@@ -189,21 +209,24 @@ class DropzoneController extends Controller
         return true;
       }
 
-      // If the photo doesn't have a user_id, anyone can delete it
-      if (is_null($photo->user_id)) {
-        return true;
-      }
+      // For public sites, allow deletion by default (backward compatibility)
+      return true;
+    }
 
-      return false;
+    // From here, user is authenticated - check user_id column exists
+    if (!Schema::hasColumn('photos', 'user_id')) {
+      // If no user_id column, allow authenticated users to delete
+      return true;
     }
 
     // If the photo doesn't have a user_id, allow any authenticated user to delete it
-    if (is_null($photo->user_id)) {
+    $photoUserId = $photo->user_id ?? null;
+    if (is_null($photoUserId)) {
       return true;
     }
 
     // Check if the photo belongs to the authenticated user
-    if ($photo->user_id === auth()->id()) {
+    if ($photoUserId === auth()->id()) {
       return true;
     }
 
@@ -325,26 +348,5 @@ class DropzoneController extends Controller
         'message' => $e->getMessage()
       ], 500);
     }
-  }
-
-  /**
-   * Serve an image with Glide processing.
-   *
-   * @param \Illuminate\Http\Request $request
-   * @param string $path
-   * @return mixed
-   */
-  public function serveImage(Request $request, $path)
-  {
-    if (!class_exists('MacCesar\LaravelGlideEnhanced\Facades\Glide')) {
-      abort(404, 'Glide image processor not available');
-    }
-
-    $params = $request->all();
-    $disk = config('dropzone.storage.disk', 'public');
-
-    return \MacCesar\LaravelGlideEnhanced\Facades\Glide::load($path, $disk)
-      ->modify($params)
-      ->response();
   }
 }

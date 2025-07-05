@@ -9,7 +9,7 @@ A powerful and customizable Laravel package that enhances Dropzone.js to provide
 ## Features
 
 - **Simple Integration**: Easily add Dropzone to any model with a simple trait
-- **Image Processing**: Resize, crop, and optimize images with [Laravel Glide Enhanced](https://github.com/maccesar/laravel-glide-enhanced) (optional)
+- **Static Thumbnails**: Generate and serve thumbnails stored on disk
 - **Drag & Drop Reordering**: Intuitive drag-and-drop interface for sorting images
 - **Main Image Selection**: Designate a main image for your models with toggle capability
 - **Lightbox Preview**: View full-size images with an integrated lightbox
@@ -58,6 +58,32 @@ php artisan vendor:publish --tag=dropzone-enhanced-assets
 ```bash
 php artisan migrate
 ```
+
+## Updating from Previous Versions
+
+### ⚠️ Updating to v1.4.2+
+
+If you're updating from a previous version (especially v1.3.x or earlier), you need to run migrations to add the `user_id` column for enhanced security and user association features:
+
+```bash
+# Update the package
+composer update maccesar/laravel-dropzone-enhanced
+
+# Check what needs to be updated
+php artisan dropzone-enhanced:check-update
+
+# Run any pending migrations
+php artisan migrate
+```
+
+**Quick check command**: Use `php artisan dropzone-enhanced:check-update` to see if your database needs updating.
+
+**Note**: The package will work without running migrations (thanks to backward compatibility), but you'll get enhanced features like user association and improved security by running them.
+
+#### What the migration adds:
+- `user_id` column to associate photos with users
+- Improved security for photo deletion
+- Better audit trail of who uploaded what
 
 ## Usage
 
@@ -141,58 +167,6 @@ By default, the package uses your `public` disk. To change this:
   'directory' => 'uploads/images',
 ],
 ```
-
-### Image Processing with Laravel Glide Enhanced
-
-For advanced image processing, install the optional Laravel Glide Enhanced package:
-
-```bash
-composer require maccesar/laravel-glide-enhanced
-```
-
-The package will automatically detect and use Laravel Glide Enhanced for image processing, which provides:
-
-- Image optimization
-- Watermarking capabilities
-- Format conversion (WebP, JPG, PNG)
-- Dynamic image resizing and cropping
-- Automatic caching for improved performance
-
-Example of advanced usage with Laravel Glide Enhanced:
-
-```php
-// In your controller or view
-use MacCesar\LaravelGlideEnhanced\Facades\ImageProcessor;
-
-// Create optimized WebP thumbnails
-$optimizedUrl = ImageProcessor::webpUrl($photo->getPath(), [
-  'q' => 90,
-  'w' => 300,
-  'h' => 300,
-  'fit' => 'crop'
-]);
-
-// Use predefined presets from the Laravel Glide Enhanced configuration
-$thumbnailUrl = ImageProcessor::preset($photo->getPath(), 'thumbnail');
-
-// Generate responsive srcset attributes
-// For 1x, 2x, and 3x pixel densities (default)
-$srcset = ImageProcessor::srcset($photo->getPath(), [
-  'w' => 300,
-  'fm' => 'webp'
-]);
-// Output: "/img/storage/path/to/image.jpg?w=300&fm=webp 1x, /img/storage/path/to/image.jpg?w=600&fm=webp 2x, /img/storage/path/to/image.jpg?w=900&fm=webp 3x"
-
-// Control the maximum density factor (e.g., up to 2x)
-$srcset = ImageProcessor::srcset($photo->getPath(), [
-  'w' => 300,
-  'h' => 200,
-  'fm' => 'webp'
-], 2);
-// Output: "/img/storage/path/to/image.jpg?w=300&h=200&fm=webp 1x, /img/storage/path/to/image.jpg?w=600&h=400&fm=webp 2x"
-```
-
-For complete documentation, visit the [Laravel Glide Enhanced repository](https://github.com/maccesar/laravel-glide-enhanced).
 
 ### Working with Photos
 
