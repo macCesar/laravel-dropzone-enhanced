@@ -2,6 +2,29 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 1.5.0 - 2025-01-28 🧹 CLEAN RELEASE
+
+### Removed
+- **Removed unnecessary CheckDropzoneUpdate command** - No longer needed as migration structure is now stable
+- Cleaned up ServiceProvider to remove references to removed commands
+- Removed problematic duplicate migration that was causing conflicts
+
+### Changed
+- **Simplified package structure** - Focused on core functionality only
+- Package now maintains only essential migrations and commands
+- Improved installation stability for both new and existing users
+
+### Migration Status
+- `user_id` field is now properly included in the main `create_photos_table.php` migration
+- No additional migrations needed for new installations
+- Existing installations continue to work without issues (defensive code handles missing columns)
+- Removed confusing migration that was causing upgrade conflicts
+
+### Technical Improvements
+- Cleaner codebase with only essential features
+- Better stability for package upgrades
+- Simplified maintenance going forward
+
 ## 1.4.3 - 2025-07-05 ⚠️ CRITICAL HOTFIX
 
 ### Fixed
