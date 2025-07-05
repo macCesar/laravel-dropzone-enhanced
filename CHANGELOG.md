@@ -2,17 +2,16 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
-# Changelog
+## Unreleased
 
-All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
+### Added
+- **Automatic migrations**: Added migration to update existing `photos` table with `user_id` column
+- Database migrations now load automatically via ServiceProvider - no manual publishing required
+- Migration includes safeguards to avoid conflicts if column already exists
 
-# Changelog
-
-All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
-
-# Changelog
-
-All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
+### Improved
+- Enhanced user experience: users no longer need to manually create table structure updates
+- Better backward compatibility with existing installations
 
 ## 1.4.1 - 2025-07-05
 
