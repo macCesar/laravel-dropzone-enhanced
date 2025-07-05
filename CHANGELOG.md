@@ -2,6 +2,19 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 1.4.3 - 2025-07-05 ⚠️ CRITICAL HOTFIX
+
+### Fixed
+- **CRITICAL**: Fixed breaking change that crashed existing installations without `user_id` column
+- Added `Schema::hasColumn()` checks before attempting to use `user_id` field
+- `DropzoneController` now works with or without `user_id` column in table
+- Photo creation only includes `user_id` if column exists in database
+- Permission checks handle missing `user_id` column gracefully
+- Full backward compatibility restored for existing installations
+
+### Security
+- This hotfix resolves the unacceptable oversight of requiring a database field without ensuring backward compatibility
+
 ## 1.4.2 - 2025-07-05
 
 ### Added
