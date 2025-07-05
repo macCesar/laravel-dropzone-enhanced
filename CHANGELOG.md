@@ -2,6 +2,18 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 1.3.1 - 2025-07-05
+
+### Changed
+- Updated Laravel Glide Enhanced integration examples to use new `/glide/` prefix
+- Updated README documentation to reflect Laravel Glide Enhanced v2.0.0 compatibility
+- Fixed srcset examples in advanced usage section
+
+### Notes
+- No functional changes - only documentation updates
+- Fully compatible with Laravel Glide Enhanced v2.0.0
+- Automatic integration continues to work seamlessly
+
 ## 1.3.0 - 2025-04-12
 
 ### Added
@@ -27,6 +39,18 @@ All notable changes to `laravel-dropzone-enhanced` will be documented in this fi
 ### Fixed
 - Fixed session token validation to check both model ID and photo ID formats
 - Improved error handling for unauthorized deletion attempts
+
+## 1.2.2 - 2025-07-05
+
+### Changed
+- Updated Laravel Glide Enhanced integration examples to use new `/glide/` prefix
+- Updated README documentation to reflect Laravel Glide Enhanced v2.0.0 compatibility
+- Fixed srcset examples in advanced usage section
+
+### Notes
+- No functional changes - only documentation updates
+- Fully compatible with Laravel Glide Enhanced v2.0.0
+- Automatic integration continues to work seamlessly
 
 ## 1.2.1 - 2025-04-12
 
