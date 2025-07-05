@@ -181,7 +181,7 @@ $srcset = ImageProcessor::srcset($photo->getPath(), [
   'w' => 300,
   'fm' => 'webp'
 ]);
-// Output: "/img/storage/path/to/image.jpg?w=300&fm=webp 1x, /img/storage/path/to/image.jpg?w=600&fm=webp 2x, /img/storage/path/to/image.jpg?w=900&fm=webp 3x"
+// Output: "/glide/storage/path/to/image.jpg?w=300&fm=webp 1x, /glide/storage/path/to/image.jpg?w=600&fm=webp 2x, /glide/storage/path/to/image.jpg?w=900&fm=webp 3x"
 
 // Control the maximum density factor (e.g., up to 2x)
 $srcset = ImageProcessor::srcset($photo->getPath(), [
@@ -189,7 +189,7 @@ $srcset = ImageProcessor::srcset($photo->getPath(), [
   'h' => 200,
   'fm' => 'webp'
 ], 2);
-// Output: "/img/storage/path/to/image.jpg?w=300&h=200&fm=webp 1x, /img/storage/path/to/image.jpg?w=600&h=400&fm=webp 2x"
+// Output: "/glide/storage/path/to/image.jpg?w=300&h=200&fm=webp 1x, /glide/storage/path/to/image.jpg?w=600&h=400&fm=webp 2x"
 ```
 
 For complete documentation, visit the [Laravel Glide Enhanced repository](https://github.com/maccesar/laravel-glide-enhanced).
