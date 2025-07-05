@@ -20,6 +20,7 @@ class DropzoneServiceProvider extends ServiceProvider
     if ($this->app->runningInConsole()) {
       $this->commands([
         \MacCesar\LaravelDropzoneEnhanced\Console\Commands\InstallDropzoneEnhanced::class,
+        \MacCesar\LaravelDropzoneEnhanced\Console\Commands\CheckDropzoneUpdate::class,
       ]);
     }
   }

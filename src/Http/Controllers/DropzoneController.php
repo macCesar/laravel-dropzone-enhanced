@@ -100,10 +100,15 @@ class DropzoneController extends Controller
           ->count() == 0, // First photo is main by default
       ];
 
-      // Only add user_id if the column exists in the table (backward compatibility)
+      // Only add user_id if the column exists and auth is available (full compatibility)
       if (Schema::hasColumn('photos', 'user_id')) {
-        $userId = auth()->check() ? auth()->id() : null;
-        $photoData['user_id'] = $userId;
+        try {
+          $userId = auth()->check() ? auth()->id() : null;
+          $photoData['user_id'] = $userId;
+        } catch (\Exception $e) {
+          // If auth fails (no guards, public site, etc.), just ignore user_id
+          // This ensures the package works in ANY environment
+        }
       }
 
       // Create photo record
@@ -181,8 +186,16 @@ class DropzoneController extends Controller
    */
   protected function userCanDeletePhoto(Request $request, Photo $photo, $model)
   {
+    // For public sites or sites without authentication, allow deletion by default
+    try {
+      $isAuthenticated = auth()->check();
+    } catch (\Exception $e) {
+      // If auth system is not configured, allow deletion (public site)
+      return true;
+    }
+
     // For non-authenticated scenarios, check session tokens or custom headers
-    if (!auth()->check()) {
+    if (!$isAuthenticated) {
       // Check both model ID and photo ID in session tokens for better flexibility
       $sessionKey1 = "photo_access_" . get_class($model) . "_{$model->id}";
       $sessionKey2 = "photo_access_photo_{$photo->id}";
@@ -196,16 +209,11 @@ class DropzoneController extends Controller
         return true;
       }
 
-      // If the photo doesn't have a user_id (backward compatibility), anyone can delete it
-      $photoUserId = Schema::hasColumn('photos', 'user_id') ? $photo->user_id ?? null : null;
-      if (is_null($photoUserId)) {
-        return true;
-      }
-
-      return false;
+      // For public sites, allow deletion by default (backward compatibility)
+      return true;
     }
 
-    // Backward compatibility: check if user_id column exists
+    // From here, user is authenticated - check user_id column exists
     if (!Schema::hasColumn('photos', 'user_id')) {
       // If no user_id column, allow authenticated users to delete
       return true;

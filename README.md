@@ -59,6 +59,32 @@ php artisan vendor:publish --tag=dropzone-enhanced-assets
 php artisan migrate
 ```
 
+## Updating from Previous Versions
+
+### ⚠️ Updating to v1.4.2+
+
+If you're updating from a previous version (especially v1.3.x or earlier), you need to run migrations to add the `user_id` column for enhanced security and user association features:
+
+```bash
+# Update the package
+composer update maccesar/laravel-dropzone-enhanced
+
+# Check what needs to be updated
+php artisan dropzone-enhanced:check-update
+
+# Run any pending migrations
+php artisan migrate
+```
+
+**Quick check command**: Use `php artisan dropzone-enhanced:check-update` to see if your database needs updating.
+
+**Note**: The package will work without running migrations (thanks to backward compatibility), but you'll get enhanced features like user association and improved security by running them.
+
+#### What the migration adds:
+- `user_id` column to associate photos with users
+- Improved security for photo deletion
+- Better audit trail of who uploaded what
+
 ## Usage
 
 Add the `HasPhotos` trait to your model:
