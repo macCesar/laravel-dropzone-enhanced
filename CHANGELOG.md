@@ -2,6 +2,26 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+# Changelog
+
+All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
+
+## 1.3.2 - 2025-07-05
+
+### Fixed
+- **BREAKING FIX**: Fixed image loading issues when using with Laravel Glide Enhanced
+- Unified disk configuration to use `config('images.disk')` for better compatibility
+
+### Changed
+- Storage disk configuration now falls back to Laravel Glide Enhanced disk setting
+- Improved package integration by standardizing disk configuration
+- Enhanced compatibility with Laravel Glide Enhanced v2.0.0+
+
+### Notes
+- If you have both packages installed, they will now use the same disk automatically
+- This eliminates the "broken images" issue when both packages coexist
+- **Migration**: If you had custom `dropzone.storage.disk`, ensure `images.disk` is set correctly
+
 ## 1.3.1 - 2025-07-05
 
 ### Changed

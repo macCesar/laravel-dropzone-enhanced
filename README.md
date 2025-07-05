@@ -150,6 +150,8 @@ For advanced image processing, install the optional Laravel Glide Enhanced packa
 composer require maccesar/laravel-glide-enhanced
 ```
 
+> **🎯 Perfect Integration**: As of v1.3.2, both packages automatically use the same disk configuration (`config('images.disk')`) for seamless compatibility. No additional configuration needed!
+
 The package will automatically detect and use Laravel Glide Enhanced for image processing, which provides:
 
 - Image optimization
