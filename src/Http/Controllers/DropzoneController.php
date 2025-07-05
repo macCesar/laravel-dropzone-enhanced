@@ -53,22 +53,13 @@ class DropzoneController extends Controller
         $thumbnailDir = $directory . '/thumbnails/' . $thumbnailDimensions;
         Storage::disk($disk)->makeDirectory($thumbnailDir);
 
-        // Generate thumbnail path
-        $thumbnailPath = $thumbnailDir . '/' . $filename;
+        // Generate thumbnail directory (but don't create thumbnails automatically)
+        // Thumbnails can be generated later by your application if needed
+        $thumbnailDir = $directory . '/thumbnails/' . $thumbnailDimensions;
+        Storage::disk($disk)->makeDirectory($thumbnailDir);
 
-        // Process with Glide if available
-        if (class_exists('MacCesar\LaravelGlideEnhanced\Facades\Glide')) {
-          [$thumbWidth, $thumbHeight] = explode('x', $thumbnailDimensions);
-
-          \MacCesar\LaravelGlideEnhanced\Facades\Glide::load($fullPath, $disk)
-            ->modify([
-              'fit' => 'crop',
-              'w' => $thumbWidth,
-              'h' => $thumbHeight,
-              'q' => config('dropzone.images.quality', 90),
-            ])
-            ->save($thumbnailPath);
-        }
+        // Note: Static thumbnails are no longer generated automatically.
+        // If you need dynamic thumbnails, consider using a separate image processing package.
       }
 
       // Get image dimensions and size
@@ -325,26 +316,5 @@ class DropzoneController extends Controller
         'message' => $e->getMessage()
       ], 500);
     }
-  }
-
-  /**
-   * Serve an image with Glide processing.
-   *
-   * @param \Illuminate\Http\Request $request
-   * @param string $path
-   * @return mixed
-   */
-  public function serveImage(Request $request, $path)
-  {
-    if (!class_exists('MacCesar\LaravelGlideEnhanced\Facades\Glide')) {
-      abort(404, 'Glide image processor not available');
-    }
-
-    $params = $request->all();
-    $disk = config('dropzone.storage.disk', 'public');
-
-    return \MacCesar\LaravelGlideEnhanced\Facades\Glide::load($path, $disk)
-      ->modify($params)
-      ->response();
   }
 }

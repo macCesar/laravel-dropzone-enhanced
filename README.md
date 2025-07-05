@@ -9,7 +9,7 @@ A powerful and customizable Laravel package that enhances Dropzone.js to provide
 ## Features
 
 - **Simple Integration**: Easily add Dropzone to any model with a simple trait
-- **Image Processing**: Resize, crop, and optimize images with [Laravel Glide Enhanced](https://github.com/maccesar/laravel-glide-enhanced) (optional)
+- **Static Thumbnails**: Generate and serve thumbnails stored on disk
 - **Drag & Drop Reordering**: Intuitive drag-and-drop interface for sorting images
 - **Main Image Selection**: Designate a main image for your models with toggle capability
 - **Lightbox Preview**: View full-size images with an integrated lightbox
@@ -141,60 +141,6 @@ By default, the package uses your `public` disk. To change this:
   'directory' => 'uploads/images',
 ],
 ```
-
-### Image Processing with Laravel Glide Enhanced
-
-For advanced image processing, install the optional Laravel Glide Enhanced package:
-
-```bash
-composer require maccesar/laravel-glide-enhanced
-```
-
-> **🎯 Perfect Integration**: As of v1.3.2, both packages automatically use the same disk configuration (`config('images.disk')`) for seamless compatibility. No additional configuration needed!
-
-The package will automatically detect and use Laravel Glide Enhanced for image processing, which provides:
-
-- Image optimization
-- Watermarking capabilities
-- Format conversion (WebP, JPG, PNG)
-- Dynamic image resizing and cropping
-- Automatic caching for improved performance
-
-Example of advanced usage with Laravel Glide Enhanced:
-
-```php
-// In your controller or view
-use MacCesar\LaravelGlideEnhanced\Facades\ImageProcessor;
-
-// Create optimized WebP thumbnails
-$optimizedUrl = ImageProcessor::webpUrl($photo->getPath(), [
-  'q' => 90,
-  'w' => 300,
-  'h' => 300,
-  'fit' => 'crop'
-]);
-
-// Use predefined presets from the Laravel Glide Enhanced configuration
-$thumbnailUrl = ImageProcessor::preset($photo->getPath(), 'thumbnail');
-
-// Generate responsive srcset attributes
-// For 1x, 2x, and 3x pixel densities (default)
-$srcset = ImageProcessor::srcset($photo->getPath(), [
-  'w' => 300,
-  'fm' => 'webp'
-]);
-// Output: "/glide/storage/path/to/image.jpg?w=300&fm=webp 1x, /glide/storage/path/to/image.jpg?w=600&fm=webp 2x, /glide/storage/path/to/image.jpg?w=900&fm=webp 3x"
-
-// Control the maximum density factor (e.g., up to 2x)
-$srcset = ImageProcessor::srcset($photo->getPath(), [
-  'w' => 300,
-  'h' => 200,
-  'fm' => 'webp'
-], 2);
-// Output: "/glide/storage/path/to/image.jpg?w=300&h=200&fm=webp 1x, /glide/storage/path/to/image.jpg?w=600&h=400&fm=webp 2x"
-```
-
-For complete documentation, visit the [Laravel Glide Enhanced repository](https://github.com/maccesar/laravel-glide-enhanced).
 
 ### Working with Photos
 

@@ -40,11 +40,10 @@ return [
   |--------------------------------------------------------------------------
   |
   | Configuration for image storage
-  | Falls back to Laravel Glide Enhanced disk configuration for compatibility
   |
   */
   'storage' => [
-    'disk' => config('images.disk', 'public'),
+    'disk' => 'public',
     'directory' => 'images',
   ],
 
