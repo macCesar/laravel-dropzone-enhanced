@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Storage;
 use MacCesar\LaravelDropzoneEnhanced\Models\Photo;
+use MacCesar\LaravelDropzoneEnhanced\Services\ImageProcessor;
 
 class DropzoneController extends Controller
 {
@@ -53,13 +54,22 @@ class DropzoneController extends Controller
         $thumbnailDir = $directory . '/thumbnails/' . $thumbnailDimensions;
         Storage::disk($disk)->makeDirectory($thumbnailDir);
 
-        // Generate thumbnail directory (but don't create thumbnails automatically)
-        // Thumbnails can be generated later by your application if needed
-        $thumbnailDir = $directory . '/thumbnails/' . $thumbnailDimensions;
-        Storage::disk($disk)->makeDirectory($thumbnailDir);
+        // Generate thumbnail using native GD
+        $thumbnailPath = $thumbnailDir . '/' . $filename;
+        [$thumbWidth, $thumbHeight] = explode('x', $thumbnailDimensions);
 
-        // Note: Static thumbnails are no longer generated automatically.
-        // If you need dynamic thumbnails, consider using a separate image processing package.
+        $thumbnailGenerated = ImageProcessor::generateThumbnail(
+          $fullPath,
+          $thumbnailPath,
+          (int) $thumbWidth,
+          (int) $thumbHeight,
+          $disk,
+          config('dropzone.images.quality', 90)
+        );
+
+        if (!$thumbnailGenerated) {
+          \Log::warning('Failed to generate thumbnail for: ' . $fullPath);
+        }
       }
 
       // Get image dimensions and size

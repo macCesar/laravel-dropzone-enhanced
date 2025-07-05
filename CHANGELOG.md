@@ -10,6 +10,34 @@ All notable changes to `laravel-dropzone-enhanced` will be documented in this fi
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+# Changelog
+
+All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
+
+## 1.4.1 - 2025-07-05
+
+### Added
+- **Native thumbnail generation**: Restored automatic thumbnail creation using GD extension
+- Added `ImageProcessor` service class for standalone image processing
+- Thumbnails are now generated during upload without external dependencies
+
+### Fixed
+- Fixed double slash issue in generated URLs using rtrim()
+- Restored missing thumbnail generation functionality that was lost in v1.4.0
+- Thumbnails now properly appear in the dropzone preview area
+
+### Changed
+- Updated composer.json description to reflect standalone functionality
+- Removed Laravel Glide Enhanced suggestion from composer dependencies
+- Upload process now generates thumbnails using native PHP GD extension
+
+### Technical Details
+- Uses GD extension for image processing (crop and resize)
+- Supports JPEG, PNG, GIF, and WebP formats
+- Maintains aspect ratio with center crop for thumbnails
+- Preserves transparency for PNG/GIF images
+- Configurable quality settings via config file
+
 ## 1.4.0 - 2025-07-05
 
 ### ⚠️ BREAKING CHANGES
