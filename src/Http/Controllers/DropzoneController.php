@@ -5,6 +5,7 @@ namespace MacCesar\LaravelDropzoneEnhanced\Http\Controllers;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use MacCesar\LaravelDropzoneEnhanced\Models\Photo;
 use MacCesar\LaravelDropzoneEnhanced\Services\ImageProcessor;
@@ -78,16 +79,12 @@ class DropzoneController extends Controller
       $height = $imageSize[1];
       $size = $file->getSize();
 
-      // Set user_id from authenticated user if available
-      $userId = auth()->check() ? auth()->id() : null;
-
-      // Create photo record
-      $photo = Photo::create([
+      // Prepare photo data
+      $photoData = [
         'disk' => $disk,
         'size' => $size,
         'width' => $width,
         'height' => $height,
-        'user_id' => $userId,
         'filename' => $filename,
         'extension' => $extension,
         'directory' => $directory,
@@ -101,7 +98,16 @@ class DropzoneController extends Controller
         'is_main' => Photo::where('photoable_id', $modelId)
           ->where('photoable_type', $modelType)
           ->count() == 0, // First photo is main by default
-      ]);
+      ];
+
+      // Only add user_id if the column exists in the table (backward compatibility)
+      if (Schema::hasColumn('photos', 'user_id')) {
+        $userId = auth()->check() ? auth()->id() : null;
+        $photoData['user_id'] = $userId;
+      }
+
+      // Create photo record
+      $photo = Photo::create($photoData);
 
       return response()->json([
         'success' => true,
@@ -179,7 +185,7 @@ class DropzoneController extends Controller
     if (!auth()->check()) {
       // Check both model ID and photo ID in session tokens for better flexibility
       $sessionKey1 = "photo_access_" . get_class($model) . "_{$model->id}";
-      $sessionKey2 = "photo_access_" . get_class($model) . "_{$photo->id}";
+      $sessionKey2 = "photo_access_photo_{$photo->id}";
 
       if ($request->session()->has($sessionKey1) || $request->session()->has($sessionKey2)) {
         return true;
@@ -190,21 +196,29 @@ class DropzoneController extends Controller
         return true;
       }
 
-      // If the photo doesn't have a user_id, anyone can delete it
-      if (is_null($photo->user_id)) {
+      // If the photo doesn't have a user_id (backward compatibility), anyone can delete it
+      $photoUserId = Schema::hasColumn('photos', 'user_id') ? $photo->user_id ?? null : null;
+      if (is_null($photoUserId)) {
         return true;
       }
 
       return false;
     }
 
+    // Backward compatibility: check if user_id column exists
+    if (!Schema::hasColumn('photos', 'user_id')) {
+      // If no user_id column, allow authenticated users to delete
+      return true;
+    }
+
     // If the photo doesn't have a user_id, allow any authenticated user to delete it
-    if (is_null($photo->user_id)) {
+    $photoUserId = $photo->user_id ?? null;
+    if (is_null($photoUserId)) {
       return true;
     }
 
     // Check if the photo belongs to the authenticated user
-    if ($photo->user_id === auth()->id()) {
+    if ($photoUserId === auth()->id()) {
       return true;
     }
 
