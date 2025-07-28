@@ -64,9 +64,9 @@ use MacCesar\LaravelDropzoneEnhanced\Traits\HasPhotos;
 
 class Product extends Model
 {
-    use HasPhotos;
+  use HasPhotos;
 
-    // ... your other model properties
+  // ... your other model properties
 }
 ```
 
@@ -80,41 +80,41 @@ In your Blade view (e.g., `resources/views/products/edit.blade.php`), add the tw
 @extends('layouts.app')
 
 @section('content')
-    <h1>Edit Product: {{ $product->name }}</h1>
+  <h1>Edit Product: {{ $product->name }}</h1>
 
-    <form action="{{ route('products.update', $product) }}" method="POST">
-        @csrf
-        @method('PUT')
+  <form action="{{ route('products.update', $product) }}" method="POST">
+    @csrf
+    @method('PUT')
 
-        {{-- Your other form fields --}}
-        <div>
-            <label for="name">Product Name</label>
-            <input type="text" id="name" name="name" value="{{ $product->name }}">
-        </div>
+    {{-- Your other form fields --}}
+    <div>
+      <label for="name">Product Name</label>
+      <input id="name" name="name" type="text" value="{{ $product->name }}">
+    </div>
 
-        <hr>
+    <hr>
 
-        {{-- 1. MANAGE EXISTING PHOTOS --}}
-        <h3>Manage Existing Photos</h3>
-        <p>Drag to reorder, click the star to set the main photo, or use the trash icon to delete.</p>
-        <x-dropzone-enhanced::photos
-            :model="$product"
-            :lightbox="true"
-        />
+    {{-- 1. UPLOAD NEW PHOTOS --}}
+    <h3>Add New Photos</h3>
+    <x-dropzone-enhanced::area
+      :max-files="10"
+      :max-filesize="5"
+      :model="$product"
+      directory="products"
+    />
 
-        <hr>
+    <hr>
 
-        {{-- 2. UPLOAD NEW PHOTOS --}}
-        <h3>Add New Photos</h3>
-        <x-dropzone-enhanced::area
-            :model="$product"
-            directory="products"
-            :max-files="10"
-            :max-filesize="5"
-        />
+    {{-- 2. MANAGE EXISTING PHOTOS --}}
+    <h3>Manage Existing Photos</h3>
+    <p>Drag to reorder, click the star to set the main photo, or use the trash icon to delete.</p>
+    <x-dropzone-enhanced::photos
+      :lightbox="true"
+      :model="$product"
+    />
 
-        <button type="submit">Save Changes</button>
-    </form>
+    <button type="submit">Save Changes</button>
+  </form>
 @endsection
 ```
 
