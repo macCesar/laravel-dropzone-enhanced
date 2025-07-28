@@ -74,7 +74,7 @@ class Product extends Model
 
 In your Blade view (e.g., `resources/views/products/edit.blade.php`), add the two components. They work together to provide the full experience.
 
-```php
+```blade
 {{-- resources/views/products/edit.blade.php --}}
 
 @extends('layouts.app')
