@@ -1,4 +1,4 @@
-@props(['model', 'directory', 'dimensions' => config('dropzone.images.default_dimensions', '1920x1080'), 'preResize' => config('dropzone.images.pre_resize', true), 'maxFiles' => config('dropzone.images.max_files', 10), 'maxFilesize' => config('dropzone.images.max_filesize', 10000) / 1000])
+@props(['model', 'directory', 'reloadOnSuccess' => false, 'dimensions' => config('dropzone.images.default_dimensions', '1920x1080'), 'preResize' => config('dropzone.images.pre_resize', true), 'maxFiles' => config('dropzone.images.max_files', 10), 'maxFilesize' => config('dropzone.images.max_filesize', 10000) / 1000])
 
 <div class="dropzone-container" data-dimensions="{{ $dimensions }}" data-directory="{{ $directory }}" data-model-id="{{ $model->id }}" data-model-type="{{ get_class($model) }}" data-pre-resize="{{ $preResize ? 'true' : 'false' }}" id="dropzone-container">
   <div class="dropzone" id="dropzone-upload">
@@ -78,28 +78,35 @@
               formData.append("directory", container.dataset.directory);
               // Asegurar que dimensions siempre tenga valor
               formData.append("dimensions", container.dataset.dimensions || "1920x1080");
-
-              // Imprimir los datos que se están enviando en consola para diagnóstico
-              console.log("Enviando datos:", {
-                "model_id": parseInt(container.dataset.modelId),
-                "model_type": container.dataset.modelType,
-                "directory": container.dataset.directory,
-                "dimensions": container.dataset.dimensions || "1920x1080"
-              });
             });
 
             // Handle success
             this.on("success", function(file, response) {
-              // En lugar de disparar un evento, recargar la página después de completar todas las subidas
-              if (dropzone.getActiveFiles().length === 0) {
-                // Solo recarga si no hay más archivos en cola
-                setTimeout(function() {
-                  window.location.reload();
-                }, 300);
-              }
+              // After 2.5 seconds, fade out and remove the file
+              setTimeout(() => {
+                dropzone.removeFile(file);
+              }, 2500);
 
-              // Remove the file from the dropzone
-              dropzone.removeFile(file);
+              // If all files in the queue are finished, dispatch an event
+              if (dropzone.getUploadingFiles().length === 0 && dropzone.getQueuedFiles().length === 0) {
+                // Dispatch a custom event to notify other components (like the photo gallery)
+                document.dispatchEvent(new CustomEvent('dropzone-uploads-finished', {
+                  detail: {
+                    modelId: container.dataset.modelId
+                  }
+                }));
+              }
+            });
+
+            // Handle queue completion
+            this.on("queuecomplete", function() {
+              // Check if the reloadOnSuccess prop is true and if there were no errors
+              if ({{ $reloadOnSuccess ? 'true' : 'false' }} && this.getRejectedFiles().length === 0) {
+                // Wait a moment for the last success animation to be seen, then reload
+                setTimeout(() => {
+                  window.location.reload();
+                }, 1000); // 1 second delay before reload
+              }
             });
 
             // Handle errors
@@ -130,10 +137,11 @@
                 errorText = errorMessage;
               }
 
-              alert(errorText);
-
-              // Remove the file from the dropzone
-              dropzone.removeFile(file);
+              // Find the error message element in the preview and set its text
+              const errorNode = file.previewElement.querySelector("[data-dz-errormessage]");
+              if (errorNode) {
+                errorNode.textContent = errorText;
+              }
             });
           },
           dictDefaultMessage: "{{ __('dropzone-enhanced::messages.dropzone.message') }}",

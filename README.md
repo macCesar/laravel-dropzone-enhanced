@@ -131,14 +131,15 @@ In your Blade view (e.g., `resources/views/products/edit.blade.php`), add the tw
 
 This component provides the file upload interface.
 
-| Parameter     | Type     | Description                                                                 | Default                                        |
-| :------------ | :------- | :-------------------------------------------------------------------------- | :--------------------------------------------- |
-| `:model`      | `Model`  | **Required.** The Eloquent model instance to attach photos to.              |                                                |
-| `directory`   | `string` | **Required.** The subdirectory within your storage disk to save the images. |                                                |
-| `dimensions`  | `string` | Max dimensions for resize (e.g., "1920x1080").                              | `config('dropzone.images.default_dimensions')` |
-| `preResize`   | `bool`   | Whether to resize the image in the browser before upload.                   | `config('dropzone.images.pre_resize')`         |
-| `maxFiles`    | `int`    | Maximum number of files allowed to be uploaded.                             | `config('dropzone.images.max_files')`          |
-| `maxFilesize` | `int`    | Maximum file size in MB.                                                    | `config('dropzone.images.max_filesize')`       |
+| Parameter         | Type     | Description                                                                                 | Default                                        |
+| :---------------- | :------- | :------------------------------------------------------------------------------------------ | :--------------------------------------------- |
+| `:model`          | `Model`  | **Required.** The Eloquent model instance to attach photos to.                              |                                                |
+| `directory`       | `string` | **Required.** The subdirectory within your storage disk to save the images.                 |                                                |
+| `dimensions`      | `string` | Max dimensions for resize (e.g., "1920x1080").                                              | `config('dropzone.images.default_dimensions')` |
+| `preResize`       | `bool`   | Whether to resize the image in the browser before upload.                                   | `config('dropzone.images.pre_resize')`         |
+| `maxFiles`        | `int`    | Maximum number of files allowed to be uploaded.                                             | `config('dropzone.images.max_files')`          |
+| `maxFilesize`     | `int`    | Maximum file size in MB.                                                                    | `config('dropzone.images.max_filesize')`       |
+| `reloadOnSuccess` | `bool`   | If `true`, the page will automatically reload after all uploads are successfully completed. | `false`                                        |
 
 ### Gallery: `<x-dropzone-enhanced::photos />`
 
