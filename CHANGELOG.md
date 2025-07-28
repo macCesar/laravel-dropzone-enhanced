@@ -2,6 +2,39 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 1.5.0 - 2025-07-28
+
+### Added
+- Laravel 11 support in composer.json
+- Enhanced compatibility with latest Laravel versions
+
+### Changed
+- Updated framework dependencies to support Laravel 8-12
+- Improved PHP version compatibility (^7.4|^8.0|^8.2)
+
+## 1.4.4 - 2025-07-XX
+
+### Fixed
+- Minor bug fixes and stability improvements
+- Documentation corrections
+
+## 1.4.3 - 2025-07-XX
+
+### Fixed
+- Minor bug fixes and stability improvements
+
+## 1.4.2 - 2025-07-XX
+
+### Fixed
+- Bug fixes related to user association features
+- Enhanced error handling
+
+## 1.4.1 - 2025-07-XX
+
+### Fixed
+- Minor bug fixes and performance improvements
+- Documentation updates
+
 ## 1.4.0 - 2025-07-05 🚀 MAJOR ENHANCEMENT RELEASE
 
 ### Added
