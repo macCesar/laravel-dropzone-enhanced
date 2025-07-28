@@ -1,9 +1,9 @@
-@props(['object', 'thumbnailDimensions' => '288x288'])
+@props(['model', 'thumbnailDimensions' => '288x288'])
 
-<div class="photos-container" data-model-id="{{ $object->id }}" data-model-type="{{ get_class($object) }}" id="photos-container">
-  @if ($object->photos->count() > 0)
+<div class="photos-container" data-model-id="{{ $model->id }}" data-model-type="{{ get_class($model) }}" id="photos-container">
+  @if ($model->photos->count() > 0)
     <div class="photos-grid">
-      @foreach ($object->photos as $photo)
+      @foreach ($model->photos as $photo)
         <div class="photo-item {{ $photo->is_main ? 'is-main' : '' }}" data-photo-id="{{ $photo->id }}" data-sort-order="{{ $photo->sort_order }}">
           <div class="photo-actions">
             <button class="photo-action photo-action-view" data-photo-id="{{ $photo->id }}" data-photo-url="{{ $photo->getUrl() }}" title="{{ __('dropzone-enhanced::messages.photos.view') }}" type="button">

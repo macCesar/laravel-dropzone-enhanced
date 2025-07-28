@@ -1,6 +1,6 @@
-@props(['object', 'directory', 'dimensions' => config('dropzone.images.default_dimensions', '1920x1080'), 'preResize' => config('dropzone.images.pre_resize', true), 'maxFiles' => config('dropzone.images.max_files', 10), 'maxFilesize' => config('dropzone.images.max_filesize', 10000) / 1000])
+@props(['model', 'directory', 'dimensions' => config('dropzone.images.default_dimensions', '1920x1080'), 'preResize' => config('dropzone.images.pre_resize', true), 'maxFiles' => config('dropzone.images.max_files', 10), 'maxFilesize' => config('dropzone.images.max_filesize', 10000) / 1000])
 
-<div class="dropzone-container" data-dimensions="{{ $dimensions }}" data-directory="{{ $directory }}" data-model-id="{{ $object->id }}" data-model-type="{{ get_class($object) }}" data-pre-resize="{{ $preResize ? 'true' : 'false' }}" id="dropzone-container">
+<div class="dropzone-container" data-dimensions="{{ $dimensions }}" data-directory="{{ $directory }}" data-model-id="{{ $model->id }}" data-model-type="{{ get_class($model) }}" data-pre-resize="{{ $preResize ? 'true' : 'false' }}" id="dropzone-container">
   <div class="dropzone" id="dropzone-upload">
     <div class="dz-message">
       {{ __('dropzone-enhanced::messages.dropzone.message') }}
