@@ -5,6 +5,7 @@ namespace MacCesar\LaravelDropzoneEnhanced\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 use MacCesar\LaravelDropzoneEnhanced\Services\ImageProcessor;
 
 class Photo extends Model
@@ -98,19 +99,11 @@ class Photo extends Model
   {
     // If no processing needed, return original URL
     if (!$dimensions && !$format) {
-      // Si estamos en un entorno local y accediendo desde un dominio no-localhost
-      if (request()->getHost() !== 'localhost' && config('app.url') === 'http://localhost') {
-        // Construir manualmente la URL con el dominio correcto
-        $baseUrl = rtrim(request()->getSchemeAndHttpHost(), '/');
-        return $baseUrl . '/storage/' . $this->getPath();
-      }
-
-      // Usar Storage directamente, sin integración con otros paquetes
-      return Storage::disk($this->disk)->url($this->getPath());
+      return $this->buildUrl($this->getPath());
     }
 
-    // For processed images, use internal processing
-    return $this->processImage($dimensions, $format, $quality);
+    // For processed images, delegate to getThumbnailUrl
+    return $this->getThumbnailUrl($dimensions, $format, $quality);
   }
 
   /**
@@ -124,23 +117,52 @@ class Photo extends Model
   }
 
   /**
-   * Get the thumbnail URL for the photo using default settings from config.
-   * For custom processing, use getUrl() with parameters.
+   * Get the thumbnail URL for the photo.
    *
+   * @param string|null $dimensions Format: "widthxheight" (e.g., "400x400")
+   * @param string|null $format Output format: 'jpg', 'png', 'webp', 'gif' (null = keep original)
+   * @param int|null $quality Image quality 0-100 (null = use config default)
    * @return string
    */
-  public function getThumbnailUrl()
+  public function getThumbnailUrl($dimensions = null, $format = null, $quality = null)
   {
-    // Use default settings from config
-    $dimensions = config('dropzone.images.thumbnails.dimensions', '288x288');
+    // Set default dimensions from config if not provided
+    if (!$dimensions) {
+      $dimensions = config('dropzone.images.thumbnails.dimensions', '288x288');
+    }
 
     // Check if thumbnails are disabled in config
-    if (!config('dropzone.images.thumbnails.enabled')) {
+    if (!config('dropzone.images.thumbnails.enabled', true)) {
       return $this->getUrl();
     }
 
-    // Delegate to getUrl for processing
-    return $this->getUrl($dimensions);
+    // Check cache first (optimization #1: avoid repeated file system checks)
+    $cacheKey = "photo_thumb_{$this->id}_{$dimensions}_" . ($format ?? 'orig') . "_{$quality}";
+
+    if (Cache::has($cacheKey)) {
+      return Cache::get($cacheKey);
+    }
+
+    // Build thumbnail path
+    $thumbnailPath = $this->buildThumbnailPath($dimensions, $format);
+
+    // Check if thumbnail already exists
+    if (Storage::disk($this->disk)->exists($thumbnailPath)) {
+      $url = $this->buildUrl($thumbnailPath);
+      // Cache for 1 hour (optimization #2: cache successful URLs)
+      Cache::put($cacheKey, $url, 3600);
+      return $url;
+    }
+
+    // Generate thumbnail dynamically if it doesn't exist
+    if ($this->generateThumbnail($dimensions, $format, $quality)) {
+      $url = $this->buildUrl($thumbnailPath);
+      Cache::put($cacheKey, $url, 3600);
+      return $url;
+    }
+
+    // Fallback to original image if thumbnail generation failed
+    return $this->getUrl();
   }
 
   /**
@@ -153,8 +175,8 @@ class Photo extends Model
    */
   public function generateThumbnail($dimensions, $format = null, $quality = null)
   {
-    // Parse dimensions
-    if (!preg_match('/^(\d+)x(\d+)$/', $dimensions, $matches)) {
+    // Basic validation (optimization #3: fail fast)
+    if (!$dimensions || !preg_match('/^(\d+)x(\d+)$/', $dimensions, $matches)) {
       return false;
     }
 
@@ -163,17 +185,7 @@ class Photo extends Model
 
     // Build paths
     $sourcePath = $this->getPath();
-    $directory = dirname($sourcePath);
-    $filename = basename($sourcePath);
-
-    // If format is specified, change file extension
-    if ($format) {
-      $pathInfo = pathinfo($filename);
-      $filename = $pathInfo['filename'] . '.' . $format;
-    }
-
-    $pathSuffix = $format ? "_{$format}" : '';
-    $thumbnailPath = $directory . '/thumbnails/' . $dimensions . $pathSuffix . '/' . $filename;
+    $thumbnailPath = $this->buildThumbnailPath($dimensions, $format);
 
     // Get quality from config or parameter
     if ($quality === null) {
@@ -181,7 +193,7 @@ class Photo extends Model
     }
 
     // Generate thumbnail using ImageProcessor
-    return ImageProcessor::generateThumbnail(
+    $success = ImageProcessor::generateThumbnail(
       $sourcePath,
       $thumbnailPath,
       $width,
@@ -190,59 +202,13 @@ class Photo extends Model
       $quality,
       $format
     );
-  }
 
-  /**
-   * Process image with custom dimensions, format, and quality.
-   * Private method used internally by getUrl().
-   *
-   * @param string $dimensions Format: "widthxheight" (e.g., "400x400")
-   * @param string|null $format Output format: 'jpg', 'png', 'webp', 'gif' (null = keep original)
-   * @param int|null $quality Image quality 0-100 (null = use config default)
-   * @return string
-   */
-  private function processImage($dimensions, $format = null, $quality = null)
-  {
-    // Build thumbnail path with format consideration
-    $directory = dirname($this->getPath());
-    $filename = basename($this->getPath());
-
-    // If format is specified, change file extension
-    if ($format) {
-      $pathInfo = pathinfo($filename);
-      $filename = $pathInfo['filename'] . '.' . $format;
+    // Clear cache on successful generation (optimization #4: invalidate cache)
+    if ($success) {
+      $this->clearThumbnailCache($dimensions, $format, $quality);
     }
 
-    $pathSuffix = $format ? "_{$format}" : '';
-    $thumbnailPath = $directory . '/thumbnails/' . $dimensions . $pathSuffix . '/' . $filename;
-
-    // Check if thumbnail already exists
-    if (Storage::disk($this->disk)->exists($thumbnailPath)) {
-      // Si estamos en un entorno local y accediendo desde un dominio no-localhost
-      if (request()->getHost() !== 'localhost' && config('app.url') === 'http://localhost') {
-        $baseUrl = rtrim(request()->getSchemeAndHttpHost(), '/');
-        return $baseUrl . '/storage/' . $thumbnailPath;
-      }
-
-      return Storage::disk($this->disk)->url($thumbnailPath);
-    }
-
-    // Generate thumbnail dynamically if it doesn't exist
-    $this->generateThumbnail($dimensions, $format, $quality);
-
-    // Check again if thumbnail was created successfully
-    if (Storage::disk($this->disk)->exists($thumbnailPath)) {
-      // Si estamos en un entorno local y accediendo desde un dominio no-localhost
-      if (request()->getHost() !== 'localhost' && config('app.url') === 'http://localhost') {
-        $baseUrl = rtrim(request()->getSchemeAndHttpHost(), '/');
-        return $baseUrl . '/storage/' . $thumbnailPath;
-      }
-
-      return Storage::disk($this->disk)->url($thumbnailPath);
-    }
-
-    // Fallback to original image if thumbnail generation failed
-    return $this->getUrl();
+    return $success;
   }
 
   /**
@@ -252,25 +218,135 @@ class Photo extends Model
    */
   public function deletePhoto()
   {
-    // Get all paths to delete (original and thumbnails)
-    $paths = [$this->getPath()];
+    try {
+      // Get all paths to delete (optimization #5: better thumbnail discovery)
+      $paths = [$this->getPath()];
+      $directory = dirname($this->getPath());
+      $filename = pathinfo($this->getPath(), PATHINFO_FILENAME);
+      $extension = pathinfo($this->getPath(), PATHINFO_EXTENSION);
 
-    // Find and add thumbnail paths if they exist
+      // Find thumbnail directories
+      $thumbnailBaseDir = $directory . '/thumbnails';
+      $storage = Storage::disk($this->disk);
+
+      if ($storage->exists($thumbnailBaseDir)) {
+        $subdirs = $storage->directories($thumbnailBaseDir);
+
+        foreach ($subdirs as $subdir) {
+          // Check for files with different extensions
+          $possibleFiles = [
+            $subdir . '/' . $filename . '.' . $extension,
+            $subdir . '/' . $filename . '.jpg',
+            $subdir . '/' . $filename . '.jpeg',
+            $subdir . '/' . $filename . '.png',
+            $subdir . '/' . $filename . '.webp',
+            $subdir . '/' . $filename . '.gif',
+          ];
+
+          foreach ($possibleFiles as $file) {
+            if ($storage->exists($file)) {
+              $paths[] = $file;
+            }
+          }
+        }
+      }
+
+      // Delete all files
+      foreach ($paths as $path) {
+        if ($storage->exists($path)) {
+          $storage->delete($path);
+        }
+      }
+
+      // Clear all related cache (optimization #6: cache cleanup)
+      $this->clearAllCache();
+
+      // Delete the database record
+      return $this->delete();
+    } catch (\Exception $e) {
+      \Log::error('Photo deletion failed: ' . $e->getMessage(), [
+        'photo_id' => $this->id,
+        'path' => $this->getPath()
+      ]);
+      return false;
+    }
+  }
+
+  /**
+   * Build URL handling local environment (optimization #7: DRY - Don't Repeat Yourself)
+   *
+   * @param string $path
+   * @return string
+   */
+  private function buildUrl($path)
+  {
+    // Handle local development environment
+    if (request()->getHost() !== 'localhost' && config('app.url') === 'http://localhost') {
+      $baseUrl = rtrim(request()->getSchemeAndHttpHost(), '/');
+      return $baseUrl . '/storage/' . $path;
+    }
+
+    return Storage::disk($this->disk)->url($path);
+  }
+
+  /**
+   * Build thumbnail path (optimization #8: centralized path building)
+   *
+   * @param string $dimensions
+   * @param string|null $format
+   * @return string
+   */
+  private function buildThumbnailPath($dimensions, $format = null)
+  {
     $directory = dirname($this->getPath());
     $filename = basename($this->getPath());
 
-    // Add default thumbnail dimension
-    $defaultDimensions = config('dropzone.images.thumbnails.dimensions', '288x288');
-    $paths[] = $directory . '/thumbnails/' . $defaultDimensions . '/' . $filename;
-
-    // Delete all files from storage
-    foreach ($paths as $path) {
-      if (Storage::disk($this->disk)->exists($path)) {
-        Storage::disk($this->disk)->delete($path);
-      }
+    // If format is specified, change file extension
+    if ($format) {
+      $pathInfo = pathinfo($filename);
+      $filename = $pathInfo['filename'] . '.' . $format;
     }
 
-    // Delete the database record
-    return $this->delete();
+    $pathSuffix = $format ? "_{$format}" : '';
+    return $directory . '/thumbnails/' . $dimensions . $pathSuffix . '/' . $filename;
+  }
+
+  /**
+   * Clear specific thumbnail cache (optimization #9: targeted cache clearing)
+   *
+   * @param string $dimensions
+   * @param string|null $format
+   * @param int|null $quality
+   */
+  private function clearThumbnailCache($dimensions, $format = null, $quality = null)
+  {
+    $cacheKey = "photo_thumb_{$this->id}_{$dimensions}_" . ($format ?? 'orig') . "_{$quality}";
+    Cache::forget($cacheKey);
+  }
+
+  /**
+   * Clear all cache for this photo (optimization #10: bulk cache clearing)
+   */
+  private function clearAllCache()
+  {
+    // Simple approach: clear common cache patterns
+    $patterns = [
+      "photo_thumb_{$this->id}_*",
+      "photo_url_{$this->id}_*"
+    ];
+
+    // Note: This is a simple implementation. For production with Redis,
+    // you might want to use cache tags or a more sophisticated approach.
+    $commonQualities = [null, 80, 90, 95];
+    $commonFormats = [null, 'jpg', 'png', 'webp'];
+    $commonDimensions = ['288x288', '400x400', '800x600', '1200x800'];
+
+    foreach ($commonDimensions as $dim) {
+      foreach ($commonFormats as $fmt) {
+        foreach ($commonQualities as $qual) {
+          $this->clearThumbnailCache($dim, $fmt, $qual);
+        }
+      }
+    }
   }
 }
