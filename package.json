@@ -1,7 +1,7 @@
 {
   "name": "laravel-dropzone-enhanced-assets",
   "description": "Asset management for Laravel Dropzone Enhanced package",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "private": true,
   "scripts": {
     "build-assets": "node build-assets.js",
