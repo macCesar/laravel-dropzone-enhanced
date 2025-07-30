@@ -5,6 +5,7 @@ namespace MacCesar\LaravelDropzoneEnhanced\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\Storage;
+use MacCesar\LaravelDropzoneEnhanced\Services\ImageProcessor;
 
 class Photo extends Model
 {
@@ -88,19 +89,28 @@ class Photo extends Model
   /**
    * Get the URL for the photo.
    *
+   * @param string|null $dimensions Format: "widthxheight" (e.g., "400x400")
+   * @param string|null $format Output format: 'jpg', 'png', 'webp', 'gif' (null = original)
+   * @param int|null $quality Image quality 0-100 (null = config default)
    * @return string
    */
-  public function getUrl()
+  public function getUrl($dimensions = null, $format = null, $quality = null)
   {
-    // Si estamos en un entorno local y accediendo desde un dominio no-localhost
-    if (request()->getHost() !== 'localhost' && config('app.url') === 'http://localhost') {
-      // Construir manualmente la URL con el dominio correcto
-      $baseUrl = rtrim(request()->getSchemeAndHttpHost(), '/');
-      return $baseUrl . '/storage/' . $this->getPath();
+    // If no processing needed, return original URL
+    if (!$dimensions && !$format) {
+      // Si estamos en un entorno local y accediendo desde un dominio no-localhost
+      if (request()->getHost() !== 'localhost' && config('app.url') === 'http://localhost') {
+        // Construir manualmente la URL con el dominio correcto
+        $baseUrl = rtrim(request()->getSchemeAndHttpHost(), '/');
+        return $baseUrl . '/storage/' . $this->getPath();
+      }
+
+      // Usar Storage directamente, sin integración con otros paquetes
+      return Storage::disk($this->disk)->url($this->getPath());
     }
 
-    // Usar Storage directamente, sin integración con otros paquetes
-    return Storage::disk($this->disk)->url($this->getPath());
+    // For processed images, use internal processing
+    return $this->processImage($dimensions, $format, $quality);
   }
 
   /**
@@ -114,45 +124,124 @@ class Photo extends Model
   }
 
   /**
-   * Get the thumbnail URL for the photo.
+   * Get the thumbnail URL for the photo using default settings from config.
+   * For custom processing, use getUrl() with parameters.
    *
-   * @param string|null $dimensions
    * @return string
    */
-  public function getThumbnailUrl($dimensions = null)
+  public function getThumbnailUrl()
   {
-    // Set default dimensions from config if not provided
-    if (!$dimensions) {
-      $dimensions = config('dropzone.images.thumbnails.dimensions', '288x288');
-    }
+    // Use default settings from config
+    $dimensions = config('dropzone.images.thumbnails.dimensions', '288x288');
 
     // Check if thumbnails are disabled in config
     if (!config('dropzone.images.thumbnails.enabled')) {
       return $this->getUrl();
     }
 
-    // Build thumbnail path
+    // Delegate to getUrl for processing
+    return $this->getUrl($dimensions);
+  }
+
+  /**
+   * Generate a thumbnail for the photo with the specified dimensions.
+   *
+   * @param string $dimensions Format: "widthxheight" (e.g., "400x400")
+   * @param string|null $format Output format: 'jpg', 'png', 'webp', 'gif' (null = keep original)
+   * @param int|null $quality Image quality 0-100 (null = use config default)
+   * @return bool Success status
+   */
+  public function generateThumbnail($dimensions, $format = null, $quality = null)
+  {
+    // Parse dimensions
+    if (!preg_match('/^(\d+)x(\d+)$/', $dimensions, $matches)) {
+      return false;
+    }
+
+    $width = (int) $matches[1];
+    $height = (int) $matches[2];
+
+    // Build paths
+    $sourcePath = $this->getPath();
+    $directory = dirname($sourcePath);
+    $filename = basename($sourcePath);
+
+    // If format is specified, change file extension
+    if ($format) {
+      $pathInfo = pathinfo($filename);
+      $filename = $pathInfo['filename'] . '.' . $format;
+    }
+
+    $pathSuffix = $format ? "_{$format}" : '';
+    $thumbnailPath = $directory . '/thumbnails/' . $dimensions . $pathSuffix . '/' . $filename;
+
+    // Get quality from config or parameter
+    if ($quality === null) {
+      $quality = config('dropzone.images.thumbnails.quality', 90);
+    }
+
+    // Generate thumbnail using ImageProcessor
+    return ImageProcessor::generateThumbnail(
+      $sourcePath,
+      $thumbnailPath,
+      $width,
+      $height,
+      $this->disk,
+      $quality,
+      $format
+    );
+  }
+
+  /**
+   * Process image with custom dimensions, format, and quality.
+   * Private method used internally by getUrl().
+   *
+   * @param string $dimensions Format: "widthxheight" (e.g., "400x400")
+   * @param string|null $format Output format: 'jpg', 'png', 'webp', 'gif' (null = keep original)
+   * @param int|null $quality Image quality 0-100 (null = use config default)
+   * @return string
+   */
+  private function processImage($dimensions, $format = null, $quality = null)
+  {
+    // Build thumbnail path with format consideration
     $directory = dirname($this->getPath());
     $filename = basename($this->getPath());
-    $thumbnailPath = $directory . '/thumbnails/' . $dimensions . '/' . $filename;
 
-    // Si estamos en un entorno local y accediendo desde un dominio no-localhost
-    if (request()->getHost() !== 'localhost' && config('app.url') === 'http://localhost') {
-      // Si el thumbnail existe, construir manualmente la URL
-      if (Storage::disk($this->disk)->exists($thumbnailPath)) {
+    // If format is specified, change file extension
+    if ($format) {
+      $pathInfo = pathinfo($filename);
+      $filename = $pathInfo['filename'] . '.' . $format;
+    }
+
+    $pathSuffix = $format ? "_{$format}" : '';
+    $thumbnailPath = $directory . '/thumbnails/' . $dimensions . $pathSuffix . '/' . $filename;
+
+    // Check if thumbnail already exists
+    if (Storage::disk($this->disk)->exists($thumbnailPath)) {
+      // Si estamos en un entorno local y accediendo desde un dominio no-localhost
+      if (request()->getHost() !== 'localhost' && config('app.url') === 'http://localhost') {
         $baseUrl = rtrim(request()->getSchemeAndHttpHost(), '/');
         return $baseUrl . '/storage/' . $thumbnailPath;
       }
-      // Si no existe thumbnail, usar la imagen original
-      return $this->getUrl();
-    }
 
-    // Flujo normal: If the thumbnail exists, return its URL
-    if (Storage::disk($this->disk)->exists($thumbnailPath)) {
       return Storage::disk($this->disk)->url($thumbnailPath);
     }
 
-    // Fallback to original image (no dynamic thumbnail generation)
+    // Generate thumbnail dynamically if it doesn't exist
+    $this->generateThumbnail($dimensions, $format, $quality);
+
+    // Check again if thumbnail was created successfully
+    if (Storage::disk($this->disk)->exists($thumbnailPath)) {
+      // Si estamos en un entorno local y accediendo desde un dominio no-localhost
+      if (request()->getHost() !== 'localhost' && config('app.url') === 'http://localhost') {
+        $baseUrl = rtrim(request()->getSchemeAndHttpHost(), '/');
+        return $baseUrl . '/storage/' . $thumbnailPath;
+      }
+
+      return Storage::disk($this->disk)->url($thumbnailPath);
+    }
+
+    // Fallback to original image if thumbnail generation failed
     return $this->getUrl();
   }
 

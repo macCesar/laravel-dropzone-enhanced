@@ -15,9 +15,10 @@ class ImageProcessor
    * @param int $height Target height
    * @param string $disk Storage disk to use
    * @param int $quality JPEG quality (0-100)
+   * @param string|null $outputFormat Output format: 'jpg', 'png', 'webp', 'gif' (null = auto-detect from path)
    * @return bool Success status
    */
-  public static function generateThumbnail($sourcePath, $thumbnailPath, $width, $height, $disk = 'public', $quality = 90)
+  public static function generateThumbnail($sourcePath, $thumbnailPath, $width, $height, $disk = 'public', $quality = 90, $outputFormat = null)
   {
     try {
       // Get the full path of the source image
@@ -35,10 +36,25 @@ class ImageProcessor
 
       $sourceWidth = $imageInfo[0];
       $sourceHeight = $imageInfo[1];
-      $mimeType = $imageInfo['mime'];
+      $sourceMimeType = $imageInfo['mime'];
+      
+      // Determine output format
+      if ($outputFormat) {
+        $outputMimeType = 'image/' . ($outputFormat === 'jpg' ? 'jpeg' : $outputFormat);
+      } else {
+        // Auto-detect from thumbnail path extension
+        $extension = strtolower(pathinfo($thumbnailPath, PATHINFO_EXTENSION));
+        $outputMimeType = match($extension) {
+          'jpg', 'jpeg' => 'image/jpeg',
+          'png' => 'image/png',
+          'gif' => 'image/gif',
+          'webp' => 'image/webp',
+          default => $sourceMimeType // Fallback to source format
+        };
+      }
 
       // Create source image resource based on type
-      $sourceImage = self::createImageFromFile($sourceFullPath, $mimeType);
+      $sourceImage = self::createImageFromFile($sourceFullPath, $sourceMimeType);
       if (!$sourceImage) {
         return false;
       }
@@ -64,8 +80,8 @@ class ImageProcessor
       // Create thumbnail image
       $thumbnail = imagecreatetruecolor($width, $height);
 
-      // Preserve transparency for PNG/GIF
-      if ($mimeType === 'image/png' || $mimeType === 'image/gif') {
+      // Preserve transparency for PNG/GIF/WebP
+      if ($outputMimeType === 'image/png' || $outputMimeType === 'image/gif' || $outputMimeType === 'image/webp') {
         imagealphablending($thumbnail, false);
         imagesavealpha($thumbnail, true);
         $transparent = imagecolorallocatealpha($thumbnail, 255, 255, 255, 127);
@@ -95,7 +111,7 @@ class ImageProcessor
         mkdir($thumbnailDir, 0755, true);
       }
 
-      $success = self::saveImage($thumbnail, $thumbnailFullPath, $mimeType, $quality);
+      $success = self::saveImage($thumbnail, $thumbnailFullPath, $outputMimeType, $quality);
 
       // Clean up memory
       imagedestroy($sourceImage);

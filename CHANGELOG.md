@@ -2,6 +2,62 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.1.0 - 2025-01-30
+
+### 🚀 Enhanced Image Processing API
+
+#### Added
+- **Dynamic image processing**: `getUrl()` now accepts dimensions, format, and quality parameters
+- **Format conversion**: Support for WebP, PNG, JPG, GIF output formats
+- **Custom quality control**: Specify image quality (0-100) for each processed image
+- **Intelligent cropping**: Smart aspect ratio preservation with center cropping
+- **Automatic generation**: Images are generated on-demand and cached for future requests
+
+#### Changed
+- **BREAKING**: `getThumbnailUrl()` now only uses default config values (no parameters)
+- **BREAKING**: `getMainPhotoThumbnailUrl()` in HasPhotos trait no longer accepts parameters
+- **Enhanced**: `getUrl()` is now the primary method for all custom image processing
+- **Improved**: Better file organization with format-specific subdirectories
+
+#### New API Examples
+```php
+// Simple usage (unchanged)
+$photo->getUrl();                    // Original image
+$photo->getThumbnailUrl();           // Default thumbnail from config
+
+// Advanced processing (NEW)
+$photo->getUrl('400x400');           // Square 400x400
+$photo->getUrl('800x600', 'webp');   // WebP format
+$photo->getUrl('400x400', 'jpg', 85); // Custom quality
+
+// Migration required for HasPhotos trait
+// OLD: $product->getMainPhotoThumbnailUrl('400x400', 'webp')
+// NEW: $product->mainPhoto()?->getUrl('400x400', 'webp')
+```
+
+#### Benefits
+- 🎯 **More intuitive API**: One method for all processing needs
+- 🚀 **Better performance**: Generate only what you need, when you need it
+- 🎨 **Format flexibility**: Easy WebP adoption for better compression
+- 📁 **Organized storage**: Clean file structure for processed images
+
+#### Migration Guide
+For existing code using custom thumbnail parameters:
+```php
+// Replace this pattern:
+$url = $model->getMainPhotoThumbnailUrl('400x400', 'webp', 85);
+
+// With this pattern:
+$mainPhoto = $model->mainPhoto();
+$url = $mainPhoto?->getUrl('400x400', 'webp', 85);
+```
+
+### Technical Details
+- Enhanced `ImageProcessor` with format conversion support
+- New private `processImage()` method for internal processing logic
+- Improved thumbnail path organization with format suffixes
+- Better error handling and fallbacks for failed processing
+
 ## 1.5.0 - 2025-07-28
 
 ### Added

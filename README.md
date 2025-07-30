@@ -165,11 +165,17 @@ $product->photos;
 // Get the main photo model instance
 $photo = $product->mainPhoto();
 
-// Get the URL of the main photo
+// Get the URL of the main photo (original)
 $url = $product->getMainPhotoUrl();
 
-// Get the thumbnail URL of the main photo with custom dimensions
-$thumbUrl = $product->getMainPhotoThumbnailUrl('400x300');
+// Get the thumbnail URL of the main photo (default dimensions from config)
+$thumbUrl = $product->getMainPhotoThumbnailUrl();
+
+// Get custom processed images (NEW in v2.1)
+$mainPhoto = $product->mainPhoto();
+$customUrl = $mainPhoto?->getUrl('400x400');           // Square 400x400
+$webpUrl = $mainPhoto?->getUrl('800x600', 'webp');     // WebP format
+$qualityUrl = $mainPhoto?->getUrl('400x400', 'jpg', 85); // Custom quality
 
 // Set a specific photo as the main one
 $product->setMainPhoto($photoId);
@@ -209,23 +215,23 @@ class CustomDropzoneController extends DropzoneController
             'model_id' => 'required|integer',
             'model_type' => 'required|string',
         ]);
-        
+
         // Custom processing before upload
         $file = $request->file('file');
-        
+
         // Add watermark, custom processing, etc.
         $this->processImageBeforeUpload($file);
-        
+
         // Call parent upload method
         return parent::upload($request);
     }
-    
+
     private function processImageBeforeUpload($file)
     {
         // Your custom image processing logic here
         // Example: Add watermark, EXIF data removal, etc.
     }
-    
+
     protected function userCanDeletePhoto(Request $request, Photo $photo, $model)
     {
         // Add custom authorization logic
@@ -235,7 +241,7 @@ class CustomDropzoneController extends DropzoneController
                 return false;
             }
         }
-        
+
         // Call parent method for default checks
         return parent::userCanDeletePhoto($request, $photo, $model);
     }
@@ -313,10 +319,15 @@ echo $photo->sort_order;         // Display order
 echo $photo->is_main;            // Boolean main status
 
 // Get URLs
-echo $photo->getUrl();                    // Full image URL
-echo $photo->getThumbnailUrl();           // Default thumbnail
-echo $photo->getThumbnailUrl('300x200'); // Custom thumbnail size
+echo $photo->getUrl();                    // Original image URL
+echo $photo->getThumbnailUrl();           // Default thumbnail (from config)
 echo $photo->getPath();                   // Storage path
+
+// Custom image processing (NEW in v2.1)
+echo $photo->getUrl('400x400');           // Square 400x400
+echo $photo->getUrl('800x600', 'webp');   // Rectangular WebP
+echo $photo->getUrl('400x400', 'jpg', 85); // Custom quality
+echo $photo->getUrl('300x200', 'png');    // PNG format
 
 // Photo operations
 $photo->deletePhoto();  // Delete photo and files
@@ -557,6 +568,42 @@ Override default styles with custom CSS:
     font-size: 12px;
     z-index: 10;
 }
+```
+
+## Breaking Changes in v2.1
+
+### Enhanced Image Processing API
+
+**BEFORE (v2.0 and earlier):**
+```php
+// This worked but was confusing
+$product->getMainPhotoThumbnailUrl('400x400', 'webp', 85);
+```
+
+**AFTER (v2.1+):**
+```php
+// Simplified - thumbnails use config defaults only
+$product->getMainPhotoThumbnailUrl(); // Default dimensions from config
+
+// Enhanced - getUrl() now handles all custom processing
+$mainPhoto = $product->mainPhoto();
+$customUrl = $mainPhoto?->getUrl('400x400', 'webp', 85);
+```
+
+### Benefits of the New API:
+- ✅ **More intuitive**: `getUrl()` for all image processing
+- ✅ **Cleaner separation**: `getThumbnailUrl()` for defaults only
+- ✅ **More flexible**: Support for WebP, PNG, custom quality
+- ✅ **Better performance**: Dynamic generation only when needed
+
+### Migration Guide:
+```php
+// Replace this:
+$url = $product->getMainPhotoThumbnailUrl('400x400', 'webp');
+
+// With this:
+$mainPhoto = $product->mainPhoto();
+$url = $mainPhoto?->getUrl('400x400', 'webp');
 ```
 
 ### Configuration
