@@ -1,0 +1,16 @@
+{
+  "name": "laravel-dropzone-enhanced-assets",
+  "description": "Asset management for Laravel Dropzone Enhanced package",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build-assets": "node build-assets.js",
+    "update-dropzone": "npm install dropzone@latest && npm run build-assets"
+  },
+  "devDependencies": {
+    "dropzone": "^6.0.0-beta.2"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

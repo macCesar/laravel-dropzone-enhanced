@@ -4,7 +4,11 @@
       "Bash(find:*)",
       "Bash(git add:*)",
       "Bash(git tag:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(npm install)",
+      "Bash(npm run build-assets:*)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }

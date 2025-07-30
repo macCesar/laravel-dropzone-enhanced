@@ -172,3 +172,35 @@ $photo->deletePhoto();               // Delete photo and files
 - Handles thumbnail generation without external dependencies
 - Provides extensive configuration options
 - Includes translation support (English/Spanish)
+
+## Asset Management
+
+This package uses NPM to manage Dropzone.js assets for version control and source map support.
+
+### Updating Dropzone.js
+
+```bash
+# Update to latest version
+npm run update-dropzone
+
+# Or manually update
+npm install dropzone@latest
+npm run build-assets
+```
+
+### Build Process
+
+The `build-assets.js` script copies the following files from `node_modules/dropzone/dist/` to `resources/assets/`:
+- `dropzone-min.js` (minified JavaScript)
+- `dropzone-min.js.map` (source map for debugging)
+- `dropzone.css` (styles)  
+- `dropzone.css.map` (CSS source map)
+
+Current Dropzone.js version: **6.0.0-beta.2**
+
+### Files Structure
+```
+├── package.json          # NPM dependencies and scripts
+├── build-assets.js       # Asset build script
+├── node_modules/dropzone/ # NPM installed Dropzone.js
+└── resources/assets/     # Built assets (published to public/vendor/)
