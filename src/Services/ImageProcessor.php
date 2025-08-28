@@ -65,6 +65,9 @@ class ImageProcessor
         return false;
       }
 
+      // Apply EXIF orientation correction to source image before processing
+      $sourceImage = self::correctImageOrientation($sourceImage, $sourceFullPath);
+
       // Calculate dimensions maintaining aspect ratio with crop (optimization #4: cleaner calculation)
       $cropData = self::calculateCropDimensions($sourceWidth, $sourceHeight, $width, $height);
 
@@ -369,14 +372,14 @@ class ImageProcessor
           imageflip($image, IMG_FLIP_HORIZONTAL);
           break;
         case 6: // Rotate 90 degrees clockwise
-          $image = imagerotate($image, -90, 0);
+          $image = imagerotate($image, 90, 0);
           break;
         case 7: // Rotate 90 degrees counter-clockwise and flip horizontal
-          $image = imagerotate($image, 90, 0);
+          $image = imagerotate($image, -90, 0);
           imageflip($image, IMG_FLIP_HORIZONTAL);
           break;
         case 8: // Rotate 90 degrees counter-clockwise
-          $image = imagerotate($image, 90, 0);
+          $image = imagerotate($image, -90, 0);
           break;
       }
 
