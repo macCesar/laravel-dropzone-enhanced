@@ -329,4 +329,117 @@ class ImageProcessor
     // Quality: 100 = best quality (low compression), 0 = worst quality (high compression)
     return max(0, min(9, 9 - floor(($quality / 100) * 9)));
   }
+
+  /**
+   * Correct image orientation based on EXIF data
+   *
+   * @param resource|\GdImage $image
+   * @param string $filePath
+   * @return resource|\GdImage
+   */
+  public static function correctImageOrientation($image, $filePath)
+  {
+    // Check if EXIF functions are available
+    if (!function_exists('exif_read_data')) {
+      Log::info('EXIF functions not available, skipping orientation correction');
+      return $image;
+    }
+
+    try {
+      $exif = @exif_read_data($filePath);
+
+      if (!$exif || !isset($exif['Orientation'])) {
+        return $image; // No orientation data, return original
+      }
+
+      $orientation = $exif['Orientation'];
+
+      switch ($orientation) {
+        case 2: // Flip horizontal
+          imageflip($image, IMG_FLIP_HORIZONTAL);
+          break;
+        case 3: // Rotate 180 degrees
+          $image = imagerotate($image, 180, 0);
+          break;
+        case 4: // Flip vertical
+          imageflip($image, IMG_FLIP_VERTICAL);
+          break;
+        case 5: // Rotate 90 degrees clockwise and flip horizontal
+          $image = imagerotate($image, -90, 0);
+          imageflip($image, IMG_FLIP_HORIZONTAL);
+          break;
+        case 6: // Rotate 90 degrees clockwise
+          $image = imagerotate($image, -90, 0);
+          break;
+        case 7: // Rotate 90 degrees counter-clockwise and flip horizontal
+          $image = imagerotate($image, 90, 0);
+          imageflip($image, IMG_FLIP_HORIZONTAL);
+          break;
+        case 8: // Rotate 90 degrees counter-clockwise
+          $image = imagerotate($image, 90, 0);
+          break;
+      }
+
+      Log::info('Applied EXIF orientation correction', ['orientation' => $orientation]);
+    } catch (\Exception $e) {
+      Log::warning('Failed to read EXIF data or apply orientation', [
+        'file' => $filePath,
+        'error' => $e->getMessage()
+      ]);
+    }
+
+    return $image;
+  }
+
+  /**
+   * Correct original image file EXIF orientation in place
+   *
+   * @param string $filePath Full path to image file
+   * @param string $mimeType Image MIME type
+   * @return bool Success status
+   */
+  public static function correctOriginalImageInPlace($filePath, $mimeType)
+  {
+    if (!function_exists('exif_read_data') || !in_array($mimeType, ['image/jpeg', 'image/jpg'])) {
+      return false;
+    }
+
+    try {
+      // Check if EXIF orientation correction is needed
+      $exif = @exif_read_data($filePath);
+      if (!$exif || !isset($exif['Orientation']) || $exif['Orientation'] == 1) {
+        return false; // No correction needed
+      }
+
+      // Create image resource
+      $image = self::createImageFromFile($filePath, $mimeType);
+      if (!$image) {
+        return false;
+      }
+
+      // Apply EXIF orientation correction (reuse existing logic)
+      $correctedImage = self::correctImageOrientation($image, $filePath);
+
+      // Save corrected image back to original file
+      $success = self::saveImage($correctedImage, $filePath, $mimeType, 95);
+
+      // Clean up memory
+      imagedestroy($image);
+      if ($correctedImage !== $image) {
+        imagedestroy($correctedImage);
+      }
+
+      if ($success) {
+        Log::info('Applied EXIF correction to original image', ['file' => basename($filePath)]);
+      }
+
+      return $success;
+    } catch (\Exception $e) {
+      Log::warning('Failed to correct original image orientation', [
+        'file' => basename($filePath),
+        'error' => $e->getMessage()
+      ]);
+      return false;
+    }
+  }
 }

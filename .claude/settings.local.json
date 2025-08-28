@@ -8,7 +8,8 @@
       "WebFetch(domain:www.npmjs.com)",
       "Bash(npm install)",
       "Bash(npm run build-assets:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(php:*)"
     ],
     "deny": []
   }

@@ -45,6 +45,12 @@ class DropzoneController extends Controller
       // Upload file
       $file->storeAs($directory, $filename, $disk);
 
+      // Apply EXIF orientation correction to original image
+      if (in_array($file->getMimeType(), ['image/jpeg', 'image/jpg']) && function_exists('exif_read_data')) {
+        $originalPath = Storage::disk($disk)->path($fullPath);
+        ImageProcessor::correctOriginalImageInPlace($originalPath, $file->getMimeType());
+      }
+
       // Generate thumbnails if enabled in the configuration
       if (config('dropzone.images.thumbnails.enabled')) {
         $directory = dirname($fullPath);

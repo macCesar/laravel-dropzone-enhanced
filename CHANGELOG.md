@@ -2,6 +2,88 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.1.3 - 2025-08-28
+
+### 🔧 EXIF Orientation Fix
+
+#### Added
+- **EXIF orientation correction**: Automatic correction for mobile photos showing rotated in lightbox
+- **Smart image processing**: Images from mobile devices now display correctly oriented regardless of capture orientation
+- **New ImageProcessor methods**: Added `correctImageOrientation()` and `correctOriginalImageInPlace()` methods
+- **Enhanced logging**: Improved EXIF processing logging with detailed orientation information
+- **ext-exif dependency**: Added PHP EXIF extension requirement for orientation detection
+
+#### Fixed
+- **Mobile photo orientation**: Fixed photos from mobile devices showing rotated in lightbox view
+- **Original image processing**: Original images now processed for EXIF orientation (thumbnails were already working)
+- **Cross-device compatibility**: Ensures consistent image display across different devices and orientations
+
+#### Changed
+- **Requirements**: Added `ext-exif` extension requirement in composer.json
+- **Documentation**: Updated README.md with EXIF Orientation Support section
+- **Image processing**: Enhanced ImageProcessor with comprehensive EXIF orientation handling
+
+#### Technical Details
+```php
+// New methods in ImageProcessor
+public static function correctImageOrientation($image, $filePath)  // Handles 8 EXIF orientations
+public static function correctOriginalImageInPlace($filePath, $mimeType)  // Applies correction to stored files
+
+// Automatic processing in DropzoneController after upload
+if (in_array($file->getMimeType(), ['image/jpeg', 'image/jpg']) && function_exists('exif_read_data')) {
+    ImageProcessor::correctOriginalImageInPlace($originalPath, $file->getMimeType());
+}
+```
+
+#### Benefits
+- 📱 **Mobile-first**: Perfect photo orientation from mobile uploads
+- 🔄 **Backward compatible**: No breaking changes, works with existing installations
+- 🎯 **Performance optimized**: Only processes JPEG images with EXIF data
+- 🛡️ **Graceful fallbacks**: Handles images without EXIF data safely
+
+#### EXIF Orientations Supported
+- Orientation 1: Normal (no change needed)
+- Orientation 2: Flip horizontal
+- Orientation 3: Rotate 180 degrees
+- Orientation 4: Flip vertical
+- Orientation 5: Rotate 90° CCW + flip horizontal
+- Orientation 6: Rotate 90° counter-clockwise
+- Orientation 7: Rotate 90° CW + flip horizontal
+- Orientation 8: Rotate 90° clockwise
+
+## 2.1.2 - 2025-07-30
+
+### 🔧 Asset Management Enhancement
+
+#### Added
+- **NPM-based asset management**: Added `package.json` for Dropzone.js dependency management
+- **Build automation**: New `build-assets.js` script for copying assets from node_modules
+- **Source map support**: Fixed missing source map files (.map) for better debugging
+- **Version tracking**: Now explicitly tracks Dropzone.js version (currently 6.0.0-beta.2)
+
+#### Changed
+- **Asset workflow**: Moved from manual asset bundling to NPM-managed dependencies
+- **Build process**: Assets now built from `node_modules/dropzone/dist/` instead of manual copies
+- **Developer experience**: Source maps now properly available for debugging
+
+#### New NPM Scripts
+```bash
+npm run build-assets      # Copy assets from node_modules to resources/assets
+npm run update-dropzone   # Update Dropzone.js to latest version + build
+```
+
+#### Technical Benefits
+- 🎯 **Version control**: Explicit Dropzone.js version management
+- 🐛 **Better debugging**: Source maps resolve 404 errors in DevTools
+- 🔄 **Easy updates**: Simple `npm run update-dropzone` command
+- 📦 **Professional workflow**: NPM-based dependency management
+
+#### Migration for Contributors
+For developers working on this package:
+1. Run `npm install` to get dependencies
+2. Use `npm run build-assets` to rebuild assets
+3. Use `npm run update-dropzone` for Dropzone.js updates
+
 ## 2.1.0 - 2025-01-30
 
 ### 🚀 Enhanced Image Processing API

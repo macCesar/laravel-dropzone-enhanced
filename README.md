@@ -19,6 +19,8 @@ A powerful and customizable Laravel package that enhances Dropzone.js to provide
 
 - PHP 7.4 or higher
 - Laravel 8.0 or higher
+- **ext-exif** (for automatic image orientation correction)
+- ext-gd (for image processing)
 
 ## Installation
 
@@ -43,6 +45,21 @@ Ensure your public storage disk is linked so images are accessible.
 ```bash
 php artisan storage:link
 ```
+
+## EXIF Orientation Support
+
+The package automatically corrects image orientation based on EXIF data from mobile photos:
+
+- **Auto-detection**: Reads EXIF orientation data from uploaded images
+- **Smart correction**: Applies rotation/flipping to both original and thumbnails
+- **Fallback handling**: Gracefully handles images without EXIF data
+- **Performance optimized**: Only processes JPEG images with orientation data
+
+### Requirements for EXIF Support
+- PHP `ext-exif` extension enabled
+- JPEG images with EXIF metadata
+
+Images will display correctly oriented regardless of how they were captured on mobile devices.
 
 ---
 
@@ -1592,7 +1609,26 @@ A: Use the `thumbnailDimensions` prop on the photos component:
 **Q: Can I add custom validation rules?**
 A: Yes, extend the `DropzoneController` and override the `upload` method with your custom validation.
 
-## Contributing
+## Development & Contributing
+
+### Asset Management
+
+This package uses NPM to manage Dropzone.js assets. For contributors:
+
+```bash
+# Install dependencies
+npm install
+
+# Build assets from node_modules
+npm run build-assets
+
+# Update Dropzone.js to latest version
+npm run update-dropzone
+```
+
+The package includes Dropzone.js **6.0.0-beta.2** with full source map support for debugging.
+
+### Contributing Guidelines
 
 Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
