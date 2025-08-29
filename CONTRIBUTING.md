@@ -20,6 +20,18 @@
 - Document all public methods and functions
 - Use 2 spaces for indentation in all code files
 
+## Asset Workflow (Maintainers)
+
+- Purpose: keep Dropzone.js assets versioned and publishable for consumers.
+- Script: `scripts/build-assets.js` copies from `node_modules/dropzone/dist/` to `resources/assets/`.
+- Commands:
+  - `npm install`
+  - `npm run build-assets`
+  - `npm run update-dropzone` (updates Dropzone then rebuilds)
+- Publish tags (both work):
+  - Preferred: `php artisan vendor:publish --tag=dropzoneenhanced-assets`
+  - Alias: `php artisan vendor:publish --tag=dropzone-enhanced-assets`
+
 ## Documentation
 
 - Keep documentation up-to-date with code changes

@@ -2,6 +2,23 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.1.4 - 2025-08-29
+
+### 🔄 Command Prefix Update (Backward Compatible)
+
+#### Changed
+- Renamed Artisan command to use a hyphen-less prefix: `dropzoneenhanced:install`.
+- Kept a backward-compatible alias: `dropzone-enhanced:install` continues to work.
+ - Added dual vendor:publish tags for all publishable assets: both `dropzoneenhanced-*` and legacy `dropzone-enhanced-*` are registered.
+
+#### Updated
+- Documentation references in README, CLAUDE.md, AGENTS.md, and docs updated to prefer the new command.
+ - Docs updated to prefer `vendor:publish --tag=dropzoneenhanced-*` with alias notes.
+
+#### Upgrade Notes
+- No breaking changes. Existing automation and docs that call `php artisan dropzone-enhanced:install` keep working.
+- For consistency, update scripts to `php artisan dropzoneenhanced:install` when convenient.
+
 ## 2.1.3 - 2025-08-28
 
 ### 🔧 EXIF Orientation Fix
@@ -57,7 +74,7 @@ if (in_array($file->getMimeType(), ['image/jpeg', 'image/jpg']) && function_exis
 
 #### Added
 - **NPM-based asset management**: Added `package.json` for Dropzone.js dependency management
-- **Build automation**: New `build-assets.js` script for copying assets from node_modules
+- **Build automation**: New `scripts/build-assets.js` for copying assets from node_modules
 - **Source map support**: Fixed missing source map files (.map) for better debugging
 - **Version tracking**: Now explicitly tracks Dropzone.js version (currently 6.0.0-beta.2)
 

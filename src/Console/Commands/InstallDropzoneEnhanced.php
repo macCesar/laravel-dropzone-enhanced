@@ -8,7 +8,11 @@ use Illuminate\Support\Facades\Schema;
 
 class InstallDropzoneEnhanced extends Command
 {
-  protected $signature = 'dropzone-enhanced:install';
+  // New canonical command name (prefix without hyphen)
+  protected $signature = 'dropzoneenhanced:install';
+
+  // Backward-compatible alias for previous command name
+  protected $aliases = ['dropzone-enhanced:install'];
 
   protected $description = 'Install and configure the Laravel Dropzone Enhanced package';
 
@@ -21,22 +25,22 @@ class InstallDropzoneEnhanced extends Command
 
     $this->info('Publishing configuration...');
     $this->callSilent('vendor:publish', [
-      '--tag' => 'dropzone-enhanced-config',
+      '--tag' => 'dropzoneenhanced-config',
     ]);
 
     $this->info('Publishing migrations...');
     $this->callSilent('vendor:publish', [
-      '--tag' => 'dropzone-enhanced-migrations',
+      '--tag' => 'dropzoneenhanced-migrations',
     ]);
 
     $this->info('Publishing assets...');
     $this->callSilent('vendor:publish', [
-      '--tag' => 'dropzone-enhanced-assets',
+      '--tag' => 'dropzoneenhanced-assets',
     ]);
 
     if (!File::exists(public_path('vendor/dropzone-enhanced'))) {
       $this->warn('Assets could not be published automatically.');
-      $this->warn('Please run: php artisan vendor:publish --tag=dropzone-enhanced-assets');
+      $this->warn('Please run: php artisan vendor:publish --tag=dropzoneenhanced-assets');
     }
 
     if ($this->confirm('Run migrations now?')) {

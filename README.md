@@ -32,8 +32,9 @@ composer require maccesar/laravel-dropzone-enhanced
 **2. Run the Installer**
 This command publishes the config file, migrations, and assets.
 ```bash
-php artisan dropzone-enhanced:install
+php artisan dropzoneenhanced:install
 ```
+Note: The legacy alias `dropzone-enhanced:install` still works.
 
 **3. Run Migrations**
 ```bash
@@ -113,22 +114,14 @@ In your Blade view (e.g., `resources/views/products/edit.blade.php`), add the tw
 
     {{-- 1. UPLOAD NEW PHOTOS --}}
     <h3>Add New Photos</h3>
-    <x-dropzone-enhanced::area
-      :max-files="10"
-      :max-filesize="5"
-      :model="$product"
-      directory="products"
-    />
+    <x-dropzone-enhanced::area :max-files="10" :max-filesize="5" :model="$product" directory="products" />
 
     <hr>
 
     {{-- 2. MANAGE EXISTING PHOTOS --}}
     <h3>Manage Existing Photos</h3>
     <p>Drag to reorder, click the star to set the main photo, or use the trash icon to delete.</p>
-    <x-dropzone-enhanced::photos
-      :lightbox="true"
-      :model="$product"
-    />
+    <x-dropzone-enhanced::photos :lightbox="true" :model="$product" />
 
     <button type="submit">Save Changes</button>
   </form>
@@ -190,8 +183,8 @@ $thumbUrl = $product->getMainPhotoThumbnailUrl();
 
 // Get custom processed images (NEW in v2.1)
 $mainPhoto = $product->mainPhoto();
-$customUrl = $mainPhoto?->getUrl('400x400');           // Square 400x400
-$webpUrl = $mainPhoto?->getUrl('800x600', 'webp');     // WebP format
+$customUrl = $mainPhoto?->getUrl('400x400'); // Square 400x400
+$webpUrl = $mainPhoto?->getUrl('800x600', 'webp'); // WebP format
 $qualityUrl = $mainPhoto?->getUrl('400x400', 'jpg', 85); // Custom quality
 
 // Set a specific photo as the main one
@@ -223,45 +216,45 @@ use MacCesar\LaravelDropzoneEnhanced\Models\Photo;
 
 class CustomDropzoneController extends DropzoneController
 {
-    public function upload(Request $request)
-    {
-        // Add custom validation rules
-        $request->validate([
-            'file' => 'required|image|mimes:jpeg,png,webp|dimensions:min_width=800,min_height=600',
-            'directory' => 'required|string',
-            'model_id' => 'required|integer',
-            'model_type' => 'required|string',
-        ]);
+  public function upload(Request $request)
+  {
+    // Add custom validation rules
+    $request->validate([
+      'file' => 'required|image|mimes:jpeg,png,webp|dimensions:min_width=800,min_height=600',
+      'directory' => 'required|string',
+      'model_id' => 'required|integer',
+      'model_type' => 'required|string',
+    ]);
 
-        // Custom processing before upload
-        $file = $request->file('file');
+    // Custom processing before upload
+    $file = $request->file('file');
 
-        // Add watermark, custom processing, etc.
-        $this->processImageBeforeUpload($file);
+    // Add watermark, custom processing, etc.
+    $this->processImageBeforeUpload($file);
 
-        // Call parent upload method
-        return parent::upload($request);
+    // Call parent upload method
+    return parent::upload($request);
+  }
+
+  private function processImageBeforeUpload($file)
+  {
+    // Your custom image processing logic here
+    // Example: Add watermark, EXIF data removal, etc.
+  }
+
+  protected function userCanDeletePhoto(Request $request, Photo $photo, $model)
+  {
+    // Add custom authorization logic
+    if ($model instanceof \App\Models\Product) {
+      // Check if user owns the product's company
+      if ($model->company_id !== auth()->user()->company_id) {
+        return false;
+      }
     }
 
-    private function processImageBeforeUpload($file)
-    {
-        // Your custom image processing logic here
-        // Example: Add watermark, EXIF data removal, etc.
-    }
-
-    protected function userCanDeletePhoto(Request $request, Photo $photo, $model)
-    {
-        // Add custom authorization logic
-        if ($model instanceof \App\Models\Product) {
-            // Check if user owns the product's company
-            if ($model->company_id !== auth()->user()->company_id) {
-                return false;
-            }
-        }
-
-        // Call parent method for default checks
-        return parent::userCanDeletePhoto($request, $photo, $model);
-    }
+    // Call parent method for default checks
+    return parent::userCanDeletePhoto($request, $photo, $model);
+  }
 }
 ```
 
@@ -282,38 +275,40 @@ Handle different image categories for the same model:
 ```blade
 {{-- Main product gallery --}}
 <div class="mb-8">
-    <h3 class="text-lg font-semibold mb-4">Product Gallery</h3>
-    <x-dropzone-enhanced::area 
-        :model="$product"
-        directory="products/{{ $product->id }}/gallery"
-        dimensions="1200x800"
-        :maxFiles="10"
-        :preResize="true"
-    />
-    <x-dropzone-enhanced::photos :model="$product" />
+  <h3 class="mb-4 text-lg font-semibold">Product Gallery</h3>
+  <x-dropzone-enhanced::area
+    :maxFiles="10"
+    :model="$product"
+    :preResize="true"
+    dimensions="1200x800"
+    directory="products/{{ $product->id }}/gallery"
+  />
+  <x-dropzone-enhanced::photos
+    :model="$product"
+  />
 </div>
 
 {{-- Technical specifications images --}}
 <div class="mb-8">
-    <h3 class="text-lg font-semibold mb-4">Technical Specifications</h3>
-    <x-dropzone-enhanced::area 
-        :model="$product"
-        directory="products/{{ $product->id }}/specs"
-        dimensions="1920x1080"
-        :maxFiles="5"
-    />
+  <h3 class="mb-4 text-lg font-semibold">Technical Specifications</h3>
+  <x-dropzone-enhanced::area
+    :maxFiles="5"
+    :model="$product"
+    dimensions="1920x1080"
+    directory="products/{{ $product->id }}/specs"
+  />
 </div>
 
 {{-- Thumbnail/avatar images --}}
 <div class="mb-8">
-    <h3 class="text-lg font-semibold mb-4">Product Thumbnails</h3>
-    <x-dropzone-enhanced::area 
-        :model="$product"
-        directory="products/{{ $product->id }}/thumbs"
-        dimensions="400x400"
-        :maxFiles="3"
-        :preResize="true"
-    />
+  <h3 class="mb-4 text-lg font-semibold">Product Thumbnails</h3>
+  <x-dropzone-enhanced::area
+    :maxFiles="3"
+    :model="$product"
+    :preResize="true"
+    dimensions="400x400"
+    directory="products/{{ $product->id }}/thumbs"
+  />
 </div>
 ```
 
@@ -364,39 +359,39 @@ use MacCesar\LaravelDropzoneEnhanced\Models\Photo as BasePhoto;
 
 class Photo extends BasePhoto
 {
-    // Custom scopes
-    public function scopeByDirectory($query, $directory)
-    {
-        return $query->where('directory', 'like', "%{$directory}%");
+  // Custom scopes
+  public function scopeByDirectory($query, $directory)
+  {
+    return $query->where('directory', 'like', "%{$directory}%");
+  }
+
+  public function scopeMainPhotos($query)
+  {
+    return $query->where('is_main', true);
+  }
+
+  public function scopeLargeImages($query, $minWidth = 1000)
+  {
+    return $query->where('width', '>=', $minWidth);
+  }
+
+  // Custom accessors
+  public function getFileSizeFormattedAttribute()
+  {
+    $bytes = $this->size;
+    $units = ['B', 'KB', 'MB', 'GB'];
+
+    for ($i = 0; $bytes > 1024; $i++) {
+      $bytes /= 1024;
     }
-    
-    public function scopeMainPhotos($query)
-    {
-        return $query->where('is_main', true);
-    }
-    
-    public function scopeLargeImages($query, $minWidth = 1000)
-    {
-        return $query->where('width', '>=', $minWidth);
-    }
-    
-    // Custom accessors
-    public function getFileSizeFormattedAttribute()
-    {
-        $bytes = $this->size;
-        $units = ['B', 'KB', 'MB', 'GB'];
-        
-        for ($i = 0; $bytes > 1024; $i++) {
-            $bytes /= 1024;
-        }
-        
-        return round($bytes, 2) . ' ' . $units[$i];
-    }
-    
-    public function getAspectRatioAttribute()
-    {
-        return $this->width / $this->height;
-    }
+
+    return round($bytes, 2) . ' ' . $units[$i];
+  }
+
+  public function getAspectRatioAttribute()
+  {
+    return $this->width / $this->height;
+  }
 }
 ```
 
@@ -422,20 +417,20 @@ Configure dropzone behavior based on user permissions:
 
 ```blade
 @php
-    $user = auth()->user();
-    $maxFiles = $user->isPremium() ? 20 : 5;
-    $maxSize = $user->isPremium() ? 10 : 2; // MB
-    $dimensions = $user->hasRole('photographer') ? '4000x3000' : '1920x1080';
-    $enablePreResize = !$user->hasRole('professional');
+  $user = auth()->user();
+  $maxFiles = $user->isPremium() ? 20 : 5;
+  $maxSize = $user->isPremium() ? 10 : 2; // MB
+  $dimensions = $user->hasRole('photographer') ? '4000x3000' : '1920x1080';
+  $enablePreResize = !$user->hasRole('professional');
 @endphp
 
-<x-dropzone-enhanced::area 
-    :model="$product"
-    directory="products/{{ $product->category }}/{{ $user->id }}"
-    :dimensions="$dimensions"
-    :maxFiles="$maxFiles"
-    :maxFilesize="$maxSize"
-    :preResize="$enablePreResize"
+<x-dropzone-enhanced::area
+  :dimensions="$dimensions"
+  :maxFiles="$maxFiles"
+  :maxFilesize="$maxSize"
+  :model="$product"
+  :preResize="$enablePreResize"
+  directory="products/{{ $product->category }}/{{ $user->id }}"
 />
 ```
 
@@ -445,69 +440,69 @@ Add JavaScript event listeners for custom behavior:
 
 ```html
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('DOMContentLoaded', function () {
     // Custom success handler
-    window.addEventListener('dropzone:success', function(event) {
-        const detail = event.detail;
-        console.log('Upload successful:', detail);
-        
-        // Custom notifications
-        showToast('Image uploaded successfully!', 'success');
-        
-        // Update UI counters
-        updatePhotoCounter();
-        
-        // Auto-refresh gallery if needed
-        if (detail.isFirstPhoto) {
-            location.reload(); // Refresh to show new main photo
-        }
+    window.addEventListener('dropzone:success', function (event) {
+      const detail = event.detail;
+      console.log('Upload successful:', detail);
+
+      // Custom notifications
+      showToast('Image uploaded successfully!', 'success');
+
+      // Update UI counters
+      updatePhotoCounter();
+
+      // Auto-refresh gallery if needed
+      if (detail.isFirstPhoto) {
+        location.reload(); // Refresh to show new main photo
+      }
     });
-    
+
     // Custom error handler
-    window.addEventListener('dropzone:error', function(event) {
-        const error = event.detail;
-        console.error('Upload failed:', error);
-        
-        // Show detailed error messages
-        if (error.message.includes('validation')) {
-            showToast('Please check your file format and size', 'error');
-        } else if (error.message.includes('storage')) {
-            showToast('Storage error. Please try again.', 'error');
-        } else {
-            showToast('Upload failed: ' + error.message, 'error');
-        }
+    window.addEventListener('dropzone:error', function (event) {
+      const error = event.detail;
+      console.error('Upload failed:', error);
+
+      // Show detailed error messages
+      if (error.message.includes('validation')) {
+        showToast('Please check your file format and size', 'error');
+      } else if (error.message.includes('storage')) {
+        showToast('Storage error. Please try again.', 'error');
+      } else {
+        showToast('Upload failed: ' + error.message, 'error');
+      }
     });
-    
+
     // Custom progress handler
-    window.addEventListener('dropzone:progress', function(event) {
-        const progress = event.detail.progress;
-        updateProgressBar(progress);
-        
-        // Show/hide loading overlay
-        if (progress === 100) {
-            hideLoadingOverlay();
-        } else {
-            showLoadingOverlay();
-        }
+    window.addEventListener('dropzone:progress', function (event) {
+      const progress = event.detail.progress;
+      updateProgressBar(progress);
+
+      // Show/hide loading overlay
+      if (progress === 100) {
+        hideLoadingOverlay();
+      } else {
+        showLoadingOverlay();
+      }
     });
-});
+  });
 
-function showToast(message, type) {
+  function showToast(message, type) {
     // Your notification system integration
-}
+  }
 
-function updatePhotoCounter() {
+  function updatePhotoCounter() {
     // Update photo count in UI
     const count = document.querySelectorAll('.photo-item').length;
     document.querySelector('#photo-count').textContent = count;
-}
+  }
 
-function updateProgressBar(progress) {
+  function updateProgressBar(progress) {
     const progressBar = document.querySelector('#upload-progress');
     if (progressBar) {
-        progressBar.style.width = progress + '%';
+      progressBar.style.width = progress + '%';
     }
-}
+  }
 </script>
 ```
 
@@ -518,72 +513,72 @@ Override default styles with custom CSS:
 ```css
 /* Custom dropzone styling */
 .dropzone-container .dropzone {
-    border: 2px dashed #4f46e5;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-    transition: all 0.3s ease;
-    min-height: 200px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  border: 2px dashed #4f46e5;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  transition: all 0.3s ease;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .dropzone:hover {
-    border-color: #3730a3;
-    background: linear-gradient(135deg, #eef2ff 0%, #ddd6fe 100%);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(79, 70, 229, 0.15);
+  border-color: #3730a3;
+  background: linear-gradient(135deg, #eef2ff 0%, #ddd6fe 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(79, 70, 229, 0.15);
 }
 
 .dropzone.dz-drag-hover {
-    border-color: #1e40af;
-    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-    transform: scale(1.02);
+  border-color: #1e40af;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  transform: scale(1.02);
 }
 
 /* Custom photo gallery */
 .photos-container .photos-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1rem;
-    margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
 }
 
 .photos-container .photo-item {
-    position: relative;
-    aspect-ratio: 1;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    transition: all 0.2s ease;
-    cursor: move;
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  cursor: move;
 }
 
 .photos-container .photo-item:hover {
-    transform: scale(1.05);
-    box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.2);
+  transform: scale(1.05);
+  box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.2);
 }
 
 .photos-container .photo-item.is-main {
-    border: 3px solid #fbbf24;
-    transform: scale(1.05);
+  border: 3px solid #fbbf24;
+  transform: scale(1.05);
 }
 
 .photos-container .photo-item.is-main::before {
-    content: "★";
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    background: #fbbf24;
-    color: white;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    z-index: 10;
+  content: "★";
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: #fbbf24;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  z-index: 10;
 }
 ```
 
@@ -627,8 +622,18 @@ $url = $mainPhoto?->getUrl('400x400', 'webp');
 
 For deep customization, publish the configuration file:
 ```bash
-php artisan vendor:publish --tag=dropzone-enhanced-config
+php artisan vendor:publish --tag=dropzoneenhanced-config
+# Alias supported: --tag=dropzone-enhanced-config
 ```
+
+#### Aliases and Backward Compatibility
+- Installer command: preferred `php artisan dropzoneenhanced:install`; alias `php artisan dropzone-enhanced:install`.
+- Publish tags (both work):
+  - Config: `dropzoneenhanced-config` (alias: `dropzone-enhanced-config`)
+  - Migrations: `dropzoneenhanced-migrations` (alias: `dropzone-enhanced-migrations`)
+  - Views: `dropzoneenhanced-views` (alias: `dropzone-enhanced-views`)
+  - Lang: `dropzoneenhanced-lang` (alias: `dropzone-enhanced-lang`)
+  - Assets: `dropzoneenhanced-assets` (alias: `dropzone-enhanced-assets`)
 You can now edit `config/dropzone.php` to change default image sizes, storage disks, route middleware, and more.
 
 ### Security & Authorization
@@ -650,17 +655,17 @@ Always validate file types both on the client and server side:
 // For custom validation, extend the controller:
 class CustomDropzoneController extends DropzoneController
 {
-    public function upload(Request $request)
-    {
-        $request->validate([
-            'file' => 'required|image|mimes:jpeg,png,webp|max:5120', // 5MB max
-            'directory' => 'required|string',
-            'model_id' => 'required|integer',
-            'model_type' => 'required|string',
-        ]);
+  public function upload(Request $request)
+  {
+    $request->validate([
+      'directory' => 'required|string',
+      'model_id' => 'required|integer',
+      'model_type' => 'required|string',
+      'file' => 'required|image|mimes:jpeg,png,webp|max:5120', // 5MB max
+    ]);
 
-        return parent::upload($request);
-    }
+    return parent::upload($request);
+  }
 }
 ```
 
@@ -670,21 +675,21 @@ Organize uploads in a secure directory structure to prevent unauthorized access:
 
 ```blade
 {{-- Good: Organized by model type --}}
-<x-dropzone-enhanced::area 
-    :model="$product"
-    directory="products"
+<x-dropzone-enhanced::area
+  :model="$product"
+  directory="products"
 />
 
 {{-- Better: Include model ID for isolation --}}
-<x-dropzone-enhanced::area 
-    :model="$product"
-    directory="products/{{ $product->id }}"
+<x-dropzone-enhanced::area
+  :model="$product"
+  directory="products/{{ $product->id }}"
 />
 
 {{-- Best: Include user context for multi-tenant apps --}}
-<x-dropzone-enhanced::area 
-    :model="$product"
-    directory="users/{{ auth()->id() }}/products/{{ $product->id }}"
+<x-dropzone-enhanced::area
+  :model="$product"
+  directory="users/{{ auth()->id() }}/products/{{ $product->id }}"
 />
 ```
 
@@ -694,7 +699,7 @@ The package provides multiple authorization layers. The `userCanDeletePhoto()` m
 
 1. **Photo ownership**: `$photo->user_id === auth()->id()`
 2. **Model ownership**: `$model->user_id === auth()->id()`
-3. **User relationship**: `$model->user() && $model->user->id === auth()->id()`  
+3. **User relationship**: `$model->user() && $model->user->id === auth()->id()`
 4. **Custom ownership**: `$model->isOwnedBy(auth()->user())`
 5. **Admin check**: `auth()->user()->isAdmin()`
 6. **Laravel Gates**: `auth()->can('delete-photos')`
@@ -705,16 +710,16 @@ To customize authorization, extend the controller:
 ```php
 class CustomDropzoneController extends DropzoneController
 {
-    protected function userCanDeletePhoto(Request $request, Photo $photo, $model)
-    {
-        // Add your custom authorization logic
-        if ($model instanceof Product && $model->company_id !== auth()->user()->company_id) {
-            return false;
-        }
-
-        // Call parent method for default checks
-        return parent::userCanDeletePhoto($request, $photo, $model);
+  protected function userCanDeletePhoto(Request $request, Photo $photo, $model)
+  {
+    // Add your custom authorization logic
+    if ($model instanceof Product && $model->company_id !== auth()->user()->company_id) {
+      return false;
     }
+
+    // Call parent method for default checks
+    return parent::userCanDeletePhoto($request, $photo, $model);
+  }
 }
 ```
 
@@ -724,21 +729,21 @@ Review your security settings in `config/dropzone.php`:
 
 ```php
 'security' => [
-    // IMPORTANT: Keep this false in production
-    'allow_all_authenticated_users' => false,
+  // IMPORTANT: Keep this false in production
+  'allow_all_authenticated_users' => false,
 
-    // Set a strong access key for API requests
-    'access_key' => env('DROPZONE_ACCESS_KEY', null),
+  // Set a strong access key for API requests
+  'access_key' => env('DROPZONE_ACCESS_KEY', null),
 ],
 
 'images' => [
-    // Limit file sizes to prevent abuse
-    'max_filesize' => 10000, // 10MB in KB
-    'max_files' => 10,
-    
-    // Resize large images to save storage
-    'default_dimensions' => '1920x1080',
-    'pre_resize' => true,
+  // Limit file sizes to prevent abuse
+  'max_filesize' => 10000, // 10MB in KB
+  'max_files' => 10,
+
+  // Resize large images to save storage
+  'default_dimensions' => '1920x1080',
+  'pre_resize' => true,
 ],
 ```
 
@@ -754,13 +759,13 @@ The package uses polymorphic relationships with user tracking:
 // Check photo ownership programmatically:
 $photo = Photo::find($photoId);
 if ($photo->user_id !== auth()->id()) {
-    abort(403, 'Unauthorized');
+  abort(403, 'Unauthorized');
 }
 
 // Check model ownership:
 $model = $photo->photoable;
 if (!$model->isOwnedBy(auth()->user())) {
-    abort(403, 'Unauthorized');
+  abort(403, 'Unauthorized');
 }
 ```
 
@@ -769,13 +774,13 @@ if (!$model->isOwnedBy(auth()->user())) {
 Implement proper limits to prevent abuse:
 
 ```blade
-<x-dropzone-enhanced::area 
-    :model="$product"
-    directory="products"
-    :maxFiles="10"           {{-- Limit number of files --}}
-    :maxFilesize="5"         {{-- Limit file size (MB) --}}
-    dimensions="1920x1080"   {{-- Resize large images --}}
-    :preResize="true"        {{-- Resize before upload --}}
+<x-dropzone-enhanced::area
+  :model="$product"
+  :maxFiles="10"           {{-- Limit number of files --}}
+  :maxFilesize="5"         {{-- Limit file size (MB) --}}
+  :preResize="true"        {{-- Resize before upload --}}
+  dimensions="1920x1080"   {{-- Resize large images --}}
+  directory="products"
 />
 ```
 
@@ -784,15 +789,15 @@ Add rate limiting middleware to your routes:
 ```php
 // In routes/web.php or your RouteServiceProvider
 Route::middleware(['throttle:uploads'])->group(function () {
-    // Dropzone routes are automatically registered
+  // Dropzone routes are automatically registered
 });
 
 // In app/Http/Kernel.php
 protected $middlewareGroups = [
-    'web' => [
-        // ... other middleware
-        'throttle:60,1', // 60 requests per minute
-    ],
+  'web' => [
+    // ... other middleware
+    'throttle:60,1', // 60 requests per minute
+  ],
 ];
 ```
 
@@ -804,11 +809,11 @@ Configure automatic image optimization to reduce file sizes and improve loading 
 
 ```blade
 {{-- Enable pre-resize for better performance --}}
-<x-dropzone-enhanced::area 
-    :model="$product"
-    directory="products"
-    dimensions="1200x800"         {{-- Resize to reasonable dimensions --}}
-    :preResize="true"             {{-- Resize in browser before upload --}}
+<x-dropzone-enhanced::area
+  :model="$product"
+  :preResize="true"             {{-- Resize in browser before upload --}}
+  dimensions="1200x800"         {{-- Resize to reasonable dimensions --}}
+  directory="products"
 />
 ```
 
@@ -816,15 +821,15 @@ Configure quality settings in `config/dropzone.php`:
 
 ```php
 'images' => [
-    'default_dimensions' => '1920x1080',  // Max dimensions
-    'pre_resize' => true,                 // Client-side resize
-    'quality' => 90,                      // JPEG quality (1-100)
-    'max_filesize' => 10000,              // 10MB max in KB
-    
-    'thumbnails' => [
-        'enabled' => true,
-        'dimensions' => '288x288',        // Thumbnail size
-    ],
+  'quality' => 90,                      // JPEG quality (1-100)
+  'pre_resize' => true,                 // Client-side resize
+  'max_filesize' => 10000,              // 10MB max in KB
+  'default_dimensions' => '1920x1080',  // Max dimensions
+
+  'thumbnails' => [
+    'enabled' => true,
+    'dimensions' => '288x288',        // Thumbnail size
+  ],
 ],
 ```
 
@@ -834,14 +839,14 @@ The package uses the `ImageProcessor` service to generate thumbnails efficiently
 
 ```blade
 {{-- Use different thumbnail sizes for different contexts --}}
-<x-dropzone-enhanced::photos 
-    :model="$product"
-    thumbnailDimensions="200x200"  {{-- Smaller for product lists --}}
+<x-dropzone-enhanced::photos
+  :model="$product"
+  thumbnailDimensions="200x200"  {{-- Smaller for product lists --}}
 />
 
-<x-dropzone-enhanced::photos 
-    :model="$product"
-    thumbnailDimensions="400x300"  {{-- Larger for detail views --}}
+<x-dropzone-enhanced::photos
+  :model="$product"
+  thumbnailDimensions="400x300"  {{-- Larger for detail views --}}
 />
 ```
 
@@ -866,7 +871,7 @@ $products = Product::with('photos')->get();
 
 // Get only main photos
 $products = Product::with(['photos' => function($query) {
-    $query->where('is_main', true);
+  $query->where('is_main', true);
 }])->get();
 
 // Order photos by sort_order (already done by HasPhotos trait)
@@ -883,15 +888,15 @@ Optimize storage usage and access patterns:
 ```php
 // Use appropriate storage disk for your needs
 'storage' => [
-    'disk' => 'public',        // For local development
-    // 'disk' => 's3',         // For production with CDN
-    'directory' => 'images',
+  'disk' => 'public',        // For local development
+  // 'disk' => 's3',         // For production with CDN
+  'directory' => 'images',
 ],
 
 // Organize files in date-based directories to avoid too many files per folder
-<x-dropzone-enhanced::area 
-    :model="$product"
-    directory="products/{{ date('Y/m') }}/{{ $product->id }}"
+<x-dropzone-enhanced::area
+  :model="$product"
+  directory="products/{{ date('Y/m') }}/{{ $product->id }}"
 />
 ```
 
@@ -916,11 +921,11 @@ Implement lazy loading for better page performance:
 
 ```blade
 {{-- The photos component includes lazy loading by default --}}
-<img 
-    src="{{ $photo->getThumbnailUrl() }}" 
-    loading="lazy"                 {{-- Native lazy loading --}}
-    alt="{{ $photo->original_filename }}"
-    class="photo-thumb"
+<img
+  class="photo-thumb"
+  src="{{ $photo->getThumbnailUrl() }}"
+  alt="{{ $photo->original_filename }}"
+  loading="lazy"                 {{-- Native lazy loading --}}
 />
 ```
 
@@ -932,21 +937,21 @@ Implement caching for frequently accessed data:
 // Cache photo counts
 public function getPhotoCountAttribute()
 {
-    return Cache::remember(
-        "product_{$this->id}_photo_count",
-        3600, // 1 hour
-        fn() => $this->photos()->count()
-    );
+  return Cache::remember(
+    "product_{$this->id}_photo_count",
+    3600, // 1 hour
+    fn() => $this->photos()->count()
+  );
 }
 
 // Cache main photo URL
 public function getCachedMainPhotoUrl()
 {
-    return Cache::remember(
-        "product_{$this->id}_main_photo_url",
-        3600,
-        fn() => $this->getMainPhotoUrl()
-    );
+  return Cache::remember(
+    "product_{$this->id}_main_photo_url",
+    3600,
+    fn() => $this->getMainPhotoUrl()
+  );
 }
 ```
 
@@ -958,16 +963,16 @@ For production environments, consider using a CDN:
 // Override the Photo model's getUrl() method for CDN
 class Photo extends \MacCesar\LaravelDropzoneEnhanced\Models\Photo
 {
-    public function getUrl()
-    {
-        $cdnUrl = config('app.cdn_url');
-        
-        if ($cdnUrl) {
-            return $cdnUrl . '/' . $this->getPath();
-        }
-        
-        return parent::getUrl();
+  public function getUrl()
+  {
+    $cdnUrl = config('app.cdn_url');
+
+    if ($cdnUrl) {
+      return $cdnUrl . '/' . $this->getPath();
     }
+
+    return parent::getUrl();
+  }
 }
 ```
 
@@ -979,32 +984,32 @@ Handle multiple photos efficiently:
 // Delete multiple photos efficiently
 public function deleteSelectedPhotos(array $photoIds)
 {
-    $photos = $this->photos()->whereIn('id', $photoIds)->get();
-    
-    foreach ($photos as $photo) {
-        $photo->deletePhoto(); // Handles file deletion + DB cleanup
-    }
+  $photos = $this->photos()->whereIn('id', $photoIds)->get();
+
+  foreach ($photos as $photo) {
+    $photo->deletePhoto(); // Handles file deletion + DB cleanup
+  }
 }
 
 // Reorder multiple photos in one operation
 public function reorderPhotos(array $photoData)
 {
-    foreach ($photoData as $item) {
-        Photo::where('id', $item['id'])
-             ->update(['sort_order' => $item['order']]);
-    }
+  foreach ($photoData as $item) {
+    Photo::where('id', $item['id'])
+        ->update(['sort_order' => $item['order']]);
+  }
 }
 
 // Bulk update main photo status
 public function setMainPhoto(int $photoId): bool
 {
-    // Unset all main photos in one query
-    $this->photos()->update(['is_main' => false]);
-    
-    // Set new main photo
-    return (bool) $this->photos()
-        ->where('id', $photoId)
-        ->update(['is_main' => true]);
+  // Unset all main photos in one query
+  $this->photos()->update(['is_main' => false]);
+
+  // Set new main photo
+  return (bool) $this->photos()
+    ->where('id', $photoId)
+    ->update(['is_main' => true]);
 }
 ```
 
@@ -1024,49 +1029,49 @@ use App\Models\Product;
 
 class ProductGallery extends Component
 {
-    public Product $product;
-    public $photos;
-    public $photoCount = 0;
-    
-    protected $listeners = [
-        'photoUploaded' => 'refreshPhotos',
-        'photoDeleted' => 'refreshPhotos',
-        'photoReordered' => 'refreshPhotos',
-    ];
-    
-    public function mount(Product $product)
-    {
-        $this->product = $product;
-        $this->refreshPhotos();
-    }
-    
-    public function refreshPhotos()
-    {
-        $this->photos = $this->product->photos()->get();
-        $this->photoCount = $this->photos->count();
-    }
-    
-    public function deletePhoto($photoId)
-    {
-        $photo = $this->product->photos()->findOrFail($photoId);
-        $photo->deletePhoto();
-        $this->refreshPhotos();
-        
-        session()->flash('message', 'Photo deleted successfully');
-    }
-    
-    public function setMainPhoto($photoId)
-    {
-        $this->product->setMainPhoto($photoId);
-        $this->refreshPhotos();
-        
-        session()->flash('message', 'Main photo updated');
-    }
-    
-    public function render()
-    {
-        return view('livewire.product-gallery');
-    }
+  public Product $product;
+  public $photos;
+  public $photoCount = 0;
+
+  protected $listeners = [
+    'photoUploaded' => 'refreshPhotos',
+    'photoDeleted' => 'refreshPhotos',
+    'photoReordered' => 'refreshPhotos',
+  ];
+
+  public function mount(Product $product)
+  {
+    $this->product = $product;
+    $this->refreshPhotos();
+  }
+
+  public function refreshPhotos()
+  {
+    $this->photos = $this->product->photos()->get();
+    $this->photoCount = $this->photos->count();
+  }
+
+  public function deletePhoto($photoId)
+  {
+    $photo = $this->product->photos()->findOrFail($photoId);
+    $photo->deletePhoto();
+    $this->refreshPhotos();
+
+    session()->flash('message', 'Photo deleted successfully');
+  }
+
+  public function setMainPhoto($photoId)
+  {
+    $this->product->setMainPhoto($photoId);
+    $this->refreshPhotos();
+
+    session()->flash('message', 'Main photo updated');
+  }
+
+  public function render()
+  {
+    return view('livewire.product-gallery');
+  }
 }
 ```
 
@@ -1075,73 +1080,59 @@ Livewire component view:
 ```blade
 {{-- resources/views/livewire/product-gallery.blade.php --}}
 <div>
-    @if (session()->has('message'))
-        <div class="alert alert-success">
-            {{ session('message') }}
-        </div>
-    @endif
+  @if (session()->has('message'))
+    <div class="alert alert-success">
+      {{ session('message') }}
+    </div>
+  @endif
 
-    <div class="mb-4">
-        <h3>Upload New Photos ({{ $photoCount }}/{{ config('dropzone.images.max_files', 10) }})</h3>
-        <x-dropzone-enhanced::area 
-            :model="$product"
-            directory="products/{{ $product->id }}"
-            :reloadOnSuccess="false"
-            wire:ignore
-        />
-    </div>
-    
-    <div class="mt-6">
-        <h3>Manage Photos</h3>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            @foreach($photos as $photo)
-                <div class="relative group">
-                    <img 
-                        src="{{ $photo->getThumbnailUrl('200x200') }}" 
-                        alt="{{ $photo->original_filename }}"
-                        class="w-full h-32 object-cover rounded-lg {{ $photo->is_main ? 'ring-4 ring-yellow-400' : '' }}"
-                    >
-                    
-                    <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
-                            wire:click="setMainPhoto({{ $photo->id }})"
-                            class="bg-yellow-500 text-white p-1 rounded-full text-xs mr-1"
-                            title="Set as main photo"
-                        >
-                            ★
-                        </button>
-                        
-                        <button 
-                            wire:click="deletePhoto({{ $photo->id }})"
-                            wire:confirm="Are you sure you want to delete this photo?"
-                            class="bg-red-500 text-white p-1 rounded-full text-xs"
-                            title="Delete photo"
-                        >
-                            ×
-                        </button>
-                    </div>
-                    
-                    @if($photo->is_main)
-                        <div class="absolute bottom-2 left-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded">
-                            Main
-                        </div>
-                    @endif
-                </div>
-            @endforeach
+  <div class="mb-4">
+    <h3>Upload New Photos ({{ $photoCount }}/{{ config('dropzone.images.max_files', 10) }})</h3>
+    <x-dropzone-enhanced::area
+      :model="$product"
+      :reloadOnSuccess="false"
+      directory="products/{{ $product->id }}"
+      wire:ignore />
+  </div>
+
+  <div class="mt-6">
+    <h3>Manage Photos</h3>
+    <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+      @foreach ($photos as $photo)
+        <div class="group relative">
+          <img alt="{{ $photo->original_filename }}" class="{{ $photo->is_main ? 'ring-4 ring-yellow-400' : '' }} h-32 w-full rounded-lg object-cover" src="{{ $photo->getThumbnailUrl('200x200') }}">
+
+          <div class="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100">
+            <button class="mr-1 rounded-full bg-yellow-500 p-1 text-xs text-white" title="Set as main photo" wire:click="setMainPhoto({{ $photo->id }})">
+              ★
+            </button>
+
+            <button class="rounded-full bg-red-500 p-1 text-xs text-white" title="Delete photo" wire:click="deletePhoto({{ $photo->id }})" wire:confirm="Are you sure you want to delete this photo?">
+              ×
+            </button>
+          </div>
+
+          @if ($photo->is_main)
+            <div class="absolute bottom-2 left-2 rounded bg-yellow-500 px-2 py-1 text-xs text-white">
+              Main
+            </div>
+          @endif
         </div>
+      @endforeach
     </div>
+  </div>
 </div>
 
 <script>
-    // Listen for upload success and refresh Livewire component
-    window.addEventListener('dropzone:success', function(event) {
-        @this.call('refreshPhotos');
-    });
-    
-    window.addEventListener('dropzone:error', function(event) {
-        // Handle upload errors in Livewire context
-        console.error('Upload failed:', event.detail);
-    });
+  // Listen for upload success and refresh Livewire component
+  window.addEventListener('dropzone:success', function(event) {
+    @this.call('refreshPhotos');
+  });
+
+  window.addEventListener('dropzone:error', function(event) {
+    // Handle upload errors in Livewire context
+    console.error('Upload failed:', event.detail);
+  });
 </script>
 ```
 
@@ -1157,41 +1148,41 @@ use Spatie\MediaLibrary\HasMedia;
 
 class Product extends Model implements HasMedia
 {
-    use InteractsWithMedia;
-    
-    public function registerMediaCollections(): void
-    {
-        $this->addMediaCollection('gallery')
-              ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp'])
-              ->singleFile(); // For single main image
-              
-        $this->addMediaCollection('thumbnails')
-              ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
+  use InteractsWithMedia;
+
+  public function registerMediaCollections(): void
+  {
+    $this->addMediaCollection('gallery')
+      ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp'])
+      ->singleFile(); // For single main image
+
+    $this->addMediaCollection('thumbnails')
+      ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
+  }
+
+  public function registerMediaConversions(Media $media = null): void
+  {
+    $this->addMediaConversion('thumb')
+      ->width(288)
+      ->height(288)
+      ->sharpen(10);
+
+    $this->addMediaConversion('large')
+      ->width(1920)
+      ->height(1080)
+      ->quality(90);
+  }
+
+  // Helper methods to work with both systems
+  public function getMainPhotoUrl()
+  {
+    if ($this->hasPhotos()) {
+      return $this->getMainPhotoUrl(); // Use package method
     }
-    
-    public function registerMediaConversions(Media $media = null): void
-    {
-        $this->addMediaConversion('thumb')
-              ->width(288)
-              ->height(288)
-              ->sharpen(10);
-              
-        $this->addMediaConversion('large')
-              ->width(1920)
-              ->height(1080)
-              ->quality(90);
-    }
-    
-    // Helper methods to work with both systems
-    public function getMainPhotoUrl()
-    {
-        if ($this->hasPhotos()) {
-            return $this->getMainPhotoUrl(); // Use package method
-        }
-        
-        // Fallback to MediaLibrary
-        return $this->getFirstMediaUrl('gallery', 'large');
-    }
+
+    // Fallback to MediaLibrary
+    return $this->getFirstMediaUrl('gallery', 'large');
+  }
 }
 ```
 
@@ -1204,10 +1195,10 @@ Create API endpoints for mobile or SPA applications:
 use App\Http\Controllers\Api\DropzoneApiController;
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('photos/upload', [DropzoneApiController::class, 'upload']);
-    Route::delete('photos/{photo}', [DropzoneApiController::class, 'destroy']);
-    Route::post('photos/{photo}/main', [DropzoneApiController::class, 'setMain']);
-    Route::post('photos/reorder', [DropzoneApiController::class, 'reorder']);
+  Route::post('photos/upload', [DropzoneApiController::class, 'upload']);
+  Route::delete('photos/{photo}', [DropzoneApiController::class, 'destroy']);
+  Route::post('photos/{photo}/main', [DropzoneApiController::class, 'setMain']);
+  Route::post('photos/reorder', [DropzoneApiController::class, 'reorder']);
 });
 ```
 
@@ -1225,61 +1216,61 @@ use MacCesar\LaravelDropzoneEnhanced\Models\Photo;
 
 class DropzoneApiController extends DropzoneController
 {
-    public function upload(Request $request)
-    {
-        try {
-            $response = parent::upload($request);
-            $data = $response->getData();
-            
-            if ($data->success) {
-                return response()->json([
-                    'success' => true,
-                    'photo' => [
-                        'id' => $data->photo->id,
-                        'url' => $data->photo->getUrl(),
-                        'thumbnail' => $data->photo->getThumbnailUrl(),
-                        'filename' => $data->photo->original_filename,
-                        'size' => $data->photo->size,
-                        'is_main' => $data->photo->is_main,
-                    ]
-                ]);
-            }
-            
-            return $response;
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Upload failed',
-                'error' => $e->getMessage()
-            ], 422);
-        }
+  public function upload(Request $request)
+  {
+    try {
+      $response = parent::upload($request);
+      $data = $response->getData();
+
+      if ($data->success) {
+        return response()->json([
+          'success' => true,
+          'photo' => [
+            'id' => $data->photo->id,
+            'url' => $data->photo->getUrl(),
+            'thumbnail' => $data->photo->getThumbnailUrl(),
+            'filename' => $data->photo->original_filename,
+            'size' => $data->photo->size,
+            'is_main' => $data->photo->is_main,
+          ]
+        ]);
+      }
+
+      return $response;
+    } catch (\Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Upload failed',
+        'error' => $e->getMessage()
+      ], 422);
     }
-    
-    public function destroy(Photo $photo)
-    {
-        try {
-            // Use the package's authorization logic
-            if (!$this->userCanDeletePhoto(request(), $photo, $photo->photoable)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Unauthorized'
-                ], 403);
-            }
-            
-            $success = $photo->deletePhoto();
-            
-            return response()->json([
-                'success' => $success,
-                'message' => $success ? 'Photo deleted successfully' : 'Failed to delete photo'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Delete failed',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+  }
+
+  public function destroy(Photo $photo)
+  {
+    try {
+      // Use the package's authorization logic
+      if (!$this->userCanDeletePhoto(request(), $photo, $photo->photoable)) {
+        return response()->json([
+          'success' => false,
+          'message' => 'Unauthorized'
+        ], 403);
+      }
+
+      $success = $photo->deletePhoto();
+
+      return response()->json([
+        'success' => $success,
+        'message' => $success ? 'Photo deleted successfully' : 'Failed to delete photo'
+      ]);
+    } catch (\Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Delete failed',
+        'error' => $e->getMessage()
+      ], 500);
     }
+  }
 }
 ```
 
@@ -1292,29 +1283,17 @@ Use the package with Inertia.js for Vue.js applications:
 <template>
   <div>
     <h1>Edit Product: {{ product.name }}</h1>
-    
+
     <!-- Upload Area -->
     <div class="mb-8">
       <h3>Upload New Photos</h3>
-      <DropzoneArea 
-        :model="product"
-        directory="products"
-        :max-files="10"
-        :max-filesize="5"
-        @upload-success="handleUploadSuccess"
-        @upload-error="handleUploadError"
-      />
+      <DropzoneArea :model="product" directory="products" :max-files="10" :max-filesize="5" @upload-success="handleUploadSuccess" @upload-error="handleUploadError" />
     </div>
-    
+
     <!-- Photo Gallery -->
     <div class="mb-8">
       <h3>Manage Photos ({{ photos.length }})</h3>
-      <PhotoGallery 
-        :photos="photos"
-        @photo-deleted="handlePhotoDelete"
-        @main-photo-changed="handleMainPhotoChange"
-        @photos-reordered="handlePhotoReorder"
-      />
+      <PhotoGallery :photos="photos" @photo-deleted="handlePhotoDelete" @main-photo-changed="handleMainPhotoChange" @photos-reordered="handlePhotoReorder" />
     </div>
   </div>
 </template>
@@ -1330,41 +1309,41 @@ export default {
     DropzoneArea,
     PhotoGallery
   },
-  
+
   props: {
     product: Object,
     photos: Array
   },
-  
+
   setup(props) {
     const photos = ref(props.photos)
-    
+
     const handleUploadSuccess = (photo) => {
       photos.value.push(photo)
       // Show success notification
       this.$toast.success('Photo uploaded successfully')
     }
-    
+
     const handleUploadError = (error) => {
       this.$toast.error('Upload failed: ' + error.message)
     }
-    
+
     const handlePhotoDelete = (photoId) => {
       photos.value = photos.value.filter(photo => photo.id !== photoId)
       this.$toast.success('Photo deleted successfully')
     }
-    
+
     const handleMainPhotoChange = (photoId) => {
       photos.value.forEach(photo => {
         photo.is_main = photo.id === photoId
       })
       this.$toast.success('Main photo updated')
     }
-    
+
     const handlePhotoReorder = (reorderedPhotos) => {
       photos.value = reorderedPhotos
     }
-    
+
     return {
       photos,
       handleUploadSuccess,
@@ -1389,23 +1368,23 @@ use MacCesar\LaravelDropzoneEnhanced\Traits\HasPhotos;
 
 class ProductResource extends Resource
 {
-    public static function form(Form $form): Form
-    {
-        return $form->schema([
-            // Other form fields...
-            
-            Section::make('Photos')
-                ->schema([
-                    // Custom photo management component
-                    ViewField::make('photos')
-                        ->view('filament.forms.dropzone-photos')
-                        ->viewData(fn ($record) => [
-                            'product' => $record,
-                            'photos' => $record?->photos ?? collect(),
-                        ]),
-                ]),
-        ]);
-    }
+  public static function form(Form $form): Form
+  {
+    return $form->schema([
+      // Other form fields...
+
+      Section::make('Photos')
+        ->schema([
+          // Custom photo management component
+          ViewField::make('photos')
+            ->view('filament.forms.dropzone-photos')
+            ->viewData(fn($record) => [
+              'product' => $record,
+              'photos' => $record?->photos ?? collect(),
+            ]),
+        ]),
+    ]);
+  }
 }
 ```
 
@@ -1414,38 +1393,34 @@ Custom Filament view:
 ```blade
 {{-- resources/views/filament/forms/dropzone-photos.blade.php --}}
 <div class="space-y-4">
-    @if($product)
-        <!-- Upload Area -->
-        <x-dropzone-enhanced::area 
-            :model="$product"
-            directory="products/{{ $product->id }}"
-            :maxFiles="10"
-            :maxFilesize="5"
-        />
-        
-        <!-- Photos Gallery -->
-        @if($photos->count() > 0)
-            <div class="grid grid-cols-3 gap-4 mt-4">
-                @foreach($photos as $photo)
-                    <div class="relative">
-                        <img 
-                            src="{{ $photo->getThumbnailUrl('200x200') }}" 
-                            alt="{{ $photo->original_filename }}"
-                            class="w-full h-32 object-cover rounded {{ $photo->is_main ? 'ring-2 ring-primary-500' : '' }}"
-                        >
-                        
-                        @if($photo->is_main)
-                            <div class="absolute top-1 left-1 bg-primary-500 text-white text-xs px-2 py-1 rounded">
-                                Main
-                            </div>
-                        @endif
-                    </div>
-                @endforeach
-            </div>
-        @endif
-    @else
-        <p class="text-gray-500">Save the product first to add photos.</p>
+  @if ($product)
+    <!-- Upload Area -->
+    <x-dropzone-enhanced::area
+      :maxFiles="10"
+      :maxFilesize="5"
+      :model="$product"
+      directory="products/{{ $product->id }}"
+    />
+
+    <!-- Photos Gallery -->
+    @if ($photos->count() > 0)
+      <div class="mt-4 grid grid-cols-3 gap-4">
+        @foreach ($photos as $photo)
+          <div class="relative">
+            <img alt="{{ $photo->original_filename }}" class="{{ $photo->is_main ? 'ring-2 ring-primary-500' : '' }} h-32 w-full rounded object-cover" src="{{ $photo->getThumbnailUrl('200x200') }}">
+
+            @if ($photo->is_main)
+              <div class="bg-primary-500 absolute left-1 top-1 rounded px-2 py-1 text-xs text-white">
+                Main
+              </div>
+            @endif
+          </div>
+        @endforeach
+      </div>
     @endif
+  @else
+    <p class="text-gray-500">Save the product first to add photos.</p>
+  @endif
 </div>
 ```
 
@@ -1461,8 +1436,8 @@ Custom Filament view:
 1. Check that your model has the `HasPhotos` trait:
    ```php
    use MacCesar\LaravelDropzoneEnhanced\Traits\HasPhotos;
-   
-   class Product extends Model 
+
+   class Product extends Model
    {
        use HasPhotos;
    }
@@ -1542,7 +1517,7 @@ Custom Filament view:
 
 2. Update your dropzone configuration:
    ```blade
-   <x-dropzone-enhanced::area 
+   <x-dropzone-enhanced::area
        :model="$product"
        :maxFilesize="10"
        directory="products"
@@ -1614,6 +1589,12 @@ A: Yes, extend the `DropzoneController` and override the `upload` method with yo
 ### Asset Management
 
 This package uses NPM to manage Dropzone.js assets. For contributors:
+
+Asset workflow (maintainers only):
+- Script: `scripts/build-assets.js` copies from `node_modules/dropzone/dist/` to `resources/assets/`.
+- Files: `dropzone-min.js`, `dropzone-min.js.map`, `dropzone.css`, `dropzone.css.map`.
+- Publish: `php artisan vendor:publish --tag=dropzoneenhanced-assets` (alias: `dropzone-enhanced-assets`).
+- Consumers don’t need NPM; maintainers run these when updating Dropzone.
 
 ```bash
 # Install dependencies

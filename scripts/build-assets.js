@@ -41,7 +41,7 @@ let skippedFiles = 0;
 filesToCopy.forEach(file => {
   const sourcePath = path.join(sourceDir, file.source);
   const destPath = path.join(destDir, file.dest);
-  
+
   try {
     if (fs.existsSync(sourcePath)) {
       fs.copyFileSync(sourcePath, destPath);

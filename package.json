@@ -4,7 +4,7 @@
   "version": "2.1.4",
   "private": true,
   "scripts": {
-    "build-assets": "node build-assets.js",
+    "build-assets": "node scripts/build-assets.js",
     "update-dropzone": "npm install dropzone@latest && npm run build-assets"
   },
   "devDependencies": {

@@ -10,14 +10,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 composer require maccesar/laravel-dropzone-enhanced
 
 # Auto-install package with all assets
-php artisan dropzone-enhanced:install
+php artisan dropzoneenhanced:install
+## (Alias supported: `dropzone-enhanced:install`)
 
 # Manually publish individual components
-php artisan vendor:publish --tag=dropzone-enhanced-config
-php artisan vendor:publish --tag=dropzone-enhanced-migrations
-php artisan vendor:publish --tag=dropzone-enhanced-assets
-php artisan vendor:publish --tag=dropzone-enhanced-views
-php artisan vendor:publish --tag=dropzone-enhanced-lang
+php artisan vendor:publish --tag=dropzoneenhanced-config
+php artisan vendor:publish --tag=dropzoneenhanced-migrations
+php artisan vendor:publish --tag=dropzoneenhanced-assets
+php artisan vendor:publish --tag=dropzoneenhanced-views
+php artisan vendor:publish --tag=dropzoneenhanced-lang
+# Aliases supported: dropzone-enhanced-*
+
+### Aliases and Backward Compatibility
+- Installer: preferred `php artisan dropzoneenhanced:install`; alias `php artisan dropzone-enhanced:install`.
+- Publish tags (both work):
+  - Config: `dropzoneenhanced-config` (alias: `dropzone-enhanced-config`)
+  - Migrations: `dropzoneenhanced-migrations` (alias: `dropzone-enhanced-migrations`)
+  - Views: `dropzoneenhanced-views` (alias: `dropzone-enhanced-views`)
+  - Lang: `dropzoneenhanced-lang` (alias: `dropzone-enhanced-lang`)
+  - Assets: `dropzoneenhanced-assets` (alias: `dropzone-enhanced-assets`)
 
 # Run migrations
 php artisan migrate
@@ -47,7 +58,7 @@ This is a Laravel package that provides enhanced Dropzone.js functionality for f
 **Service Provider** (`src/DropzoneServiceProvider.php`)
 - Registers package configuration, routes, views, translations, and migrations
 - Auto-discovers migrations and publishes assets
-- Provides the `dropzone-enhanced:install` command
+- Provides the `dropzoneenhanced:install` command (alias: `dropzone-enhanced:install`)
 
 **Photo Model** (`src/Models/Photo.php`)
 - Polymorphic model that can attach to any model via `photoable_*` fields
@@ -190,7 +201,7 @@ npm run build-assets
 
 ### Build Process
 
-The `build-assets.js` script copies the following files from `node_modules/dropzone/dist/` to `resources/assets/`:
+The build script (`scripts/build-assets.js`) copies the following files from `node_modules/dropzone/dist/` to `resources/assets/`:
 - `dropzone-min.js` (minified JavaScript)
 - `dropzone-min.js.map` (source map for debugging)
 - `dropzone.css` (styles)  
@@ -200,7 +211,7 @@ Current Dropzone.js version: **6.0.0-beta.2**
 
 ### Files Structure
 ```
-├── package.json          # NPM dependencies and scripts
-├── build-assets.js       # Asset build script
-├── node_modules/dropzone/ # NPM installed Dropzone.js
-└── resources/assets/     # Built assets (published to public/vendor/)
+├── package.json             # NPM dependencies and scripts
+├── scripts/build-assets.js  # Asset build script
+├── node_modules/dropzone/   # NPM installed Dropzone.js
+└── resources/assets/        # Built assets (published to public/vendor/)
