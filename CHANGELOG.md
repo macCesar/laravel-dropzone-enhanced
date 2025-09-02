@@ -2,6 +2,26 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.1.6 - 2025-09-02
+
+### 🚀 URL Generation Optimization
+
+#### Fixed
+- **Simplified URL generation**: Replaced complex URL building logic with Laravel's native `Storage::disk()->url()` method
+- **Improved consistency**: All image and thumbnail URLs now use Laravel's built-in storage URL generation
+- **Better maintainability**: Removed custom domain handling that was prone to configuration issues
+
+#### Technical Improvements
+- Streamlined `buildUrl()` method in Photo model to use Laravel native functionality
+- Eliminated dependency on manual request domain parsing
+- Enhanced reliability across different hosting environments (localhost, Herd, Valet, production)
+
+#### Benefits
+- ✅ **More reliable**: URLs automatically match Laravel's APP_URL configuration
+- ✅ **Less complex**: Removed 10+ lines of custom logic in favor of 1-line Laravel method
+- ✅ **Better compatibility**: Works consistently across all Laravel storage configurations
+- ✅ **Easier debugging**: Uses standard Laravel URL generation patterns
+
 ## 2.1.4 - 2025-08-29
 
 ### 🔄 Command Prefix Update (Backward Compatible)

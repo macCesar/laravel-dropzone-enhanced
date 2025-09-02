@@ -280,12 +280,7 @@ class Photo extends Model
    */
   private function buildUrl($path)
   {
-    // Handle local development environment
-    if (request()->getHost() !== 'localhost' && config('app.url') === 'http://localhost') {
-      $baseUrl = rtrim(request()->getSchemeAndHttpHost(), '/');
-      return $baseUrl . '/storage/' . $path;
-    }
-
+    // Use Laravel's built-in Storage URL generation
     return Storage::disk($this->disk)->url($path);
   }
 

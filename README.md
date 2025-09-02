@@ -13,6 +13,7 @@ A powerful and customizable Laravel package that enhances Dropzone.js to provide
 - **Automatic Thumbnail Generation**: Natively processes and creates thumbnails for fast-loading galleries.
 - **Full Management UI**: Includes drag & drop reordering, main image selection, lightbox preview, and secure deletion.
 - **Highly Customizable**: Configure everything from image dimensions and quality to storage disks and route middleware.
+- **Reliable URL Generation**: Uses Laravel's native storage URL methods for consistent image URLs across all environments.
 - **Broad Compatibility**: Supports Laravel 8, 9, 10, and 11.
 
 ## Requirements
@@ -1501,6 +1502,8 @@ Custom Filament view:
    $photo = $product->photos->first();
    dd($photo->getUrl()); // Should return a valid public URL
    ```
+
+> **Note**: As of v2.1.5, URL generation has been optimized to use Laravel's native `Storage::disk()->url()` method, which automatically handles domain consistency across all environments (localhost, Herd, Valet, production).
 
 #### File Size Issues
 
