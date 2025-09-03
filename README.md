@@ -147,7 +147,7 @@ This component provides the file upload interface.
 | `:model`          | `Model`  | **Required.** The Eloquent model instance to attach photos to.                              |                                                |
 | `directory`       | `string` | **Required.** The subdirectory within your storage disk to save the images.                 |                                                |
 | `dimensions`      | `string` | Max dimensions for resize (e.g., "1920x1080").                                              | `config('dropzone.images.default_dimensions')` |
-| `preResize`       | `bool`   | Whether to resize the image in the browser before upload.                                   | `config('dropzone.images.pre_resize')`         |
+| `preResize`       | `bool`   | Whether to resize the image in the browser before upload. Set `false` to preserve original quality. | `config('dropzone.images.pre_resize')`         |
 | `maxFiles`        | `int`    | Maximum number of files allowed to be uploaded.                                             | `config('dropzone.images.max_files')`          |
 | `maxFilesize`     | `int`    | Maximum file size in MB.                                                                    | `config('dropzone.images.max_filesize')`       |
 | `reloadOnSuccess` | `bool`   | If `true`, the page will automatically reload after all uploads are successfully completed. | `false`                                        |
@@ -812,9 +812,16 @@ Configure automatic image optimization to reduce file sizes and improve loading 
 {{-- Enable pre-resize for better performance --}}
 <x-dropzone-enhanced::area
   :model="$product"
-  :preResize="true"             {{-- Resize in browser before upload --}}
+  :preResize="true"             {{-- Resize in browser before upload (default) --}}
   dimensions="1200x800"         {{-- Resize to reasonable dimensions --}}
   directory="products"
+/>
+
+{{-- Disable pre-resize to preserve original image quality --}}
+<x-dropzone-enhanced::area
+  :model="$product"
+  :preResize="false"            {{-- Upload original images without processing --}}
+  directory="products"          {{-- Note: Files will be larger, uploads slower --}}
 />
 ```
 
@@ -822,8 +829,8 @@ Configure quality settings in `config/dropzone.php`:
 
 ```php
 'images' => [
-  'quality' => 90,                      // JPEG quality (1-100)
-  'pre_resize' => true,                 // Client-side resize
+  'quality' => 100,                     // JPEG quality (1-100) - Default: 100 for maximum quality
+  'pre_resize' => true,                 // Client-side resize - Set false to preserve original images
   'max_filesize' => 10000,              // 10MB max in KB
   'default_dimensions' => '1920x1080',  // Max dimensions
 

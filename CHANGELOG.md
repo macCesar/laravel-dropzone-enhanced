@@ -2,6 +2,43 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.1.7 - 2025-09-03
+
+### 🎨 Image Quality & Preview Enhancement
+
+#### Enhanced
+- **Improved frontend image processing**: Changed `resizeMethod` from "contain" to "crop" then back to "contain" with optimized settings
+- **Maximum quality processing**: Set `resizeQuality` to use config value (default 100%) for better image quality
+- **Conditional resize processing**: Added proper `@if ($preResize)` conditional to respect the pre_resize configuration
+- **Enhanced preview thumbnails**: Increased `thumbnailWidth/Height` from 200x200 to 576x576 for sharper preview quality
+- **Better thumbnail method**: Set `thumbnailMethod: "contain"` to maintain aspect ratios in previews
+
+#### Fixed  
+- **Poor image quality issue**: Resolved pixelated/blocky image quality caused by low resize quality settings
+- **Missing pre_resize condition**: Fixed frontend resize options always being active regardless of config setting
+- **Blurry preview images**: Improved preview resolution during upload process
+
+#### Technical Improvements
+```javascript
+// Enhanced Dropzone configuration
+@if ($preResize)
+  resizeMethod: "contain",
+  resizeQuality: {{ config('dropzone.images.quality', 100) / 100 }},
+  resizeWidth: {{ $dimensions ? explode('x', $dimensions)[0] : 1920 }},
+  resizeHeight: {{ $dimensions ? explode('x', $dimensions)[1] : 1080 }},
+@endif
+thumbnailWidth: 576,
+thumbnailHeight: 576,
+thumbnailMethod: "contain",
+```
+
+#### Benefits
+- ✅ **Better image quality**: Maximum quality processing with 100% default setting
+- ✅ **Sharper previews**: Larger thumbnail dimensions for clearer upload previews  
+- ✅ **Proper configuration respect**: `pre_resize: false` now actually disables frontend processing
+- ✅ **Maintained performance**: Smart conditional processing based on user preference
+- 🎯 **User control**: Full flexibility between quality vs file size via `pre_resize` setting
+
 ## 2.1.6 - 2025-09-02
 
 ### 🚀 URL Generation Optimization

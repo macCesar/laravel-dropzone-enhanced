@@ -48,7 +48,7 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      // Inicialización directa de Dropzone en lugar de usar discover
+      // Direct initialization of Dropzone instead of using discover
       const dropzoneElement = document.getElementById('dropzone-upload');
       if (dropzoneElement) {
         const myDropzone = new Dropzone('#dropzone-upload', {
@@ -60,11 +60,16 @@
           headers: {
             'X-CSRF-TOKEN': '{{ csrf_token() }}'
           },
-          // Configuración de redimensionamiento simplificada
-          resizeWidth: {{ $dimensions ? explode('x', $dimensions)[0] : 1920 }},
-          resizeHeight: {{ $dimensions ? explode('x', $dimensions)[1] : 1080 }},
-          resizeMethod: "contain",
-          resizeQuality: {{ config('dropzone.images.quality', 90) / 100 }},
+          // Enhanced resizing configuration
+          @if ($preResize)
+            resizeMethod: "contain",
+            resizeQuality: {{ config('dropzone.images.quality', 100) / 100 }},
+            resizeWidth: {{ $dimensions ? explode('x', $dimensions)[0] : 1920 }},
+            resizeHeight: {{ $dimensions ? explode('x', $dimensions)[1] : 1080 }},
+          @endif
+          thumbnailWidth: 576,
+          thumbnailHeight: 576,
+          thumbnailMethod: "contain",
           createImageThumbnails: true,
           init: function() {
             const dropzone = this;
@@ -72,11 +77,11 @@
 
             // Add additional data
             this.on("sending", function(file, xhr, formData) {
-              // Convertir el ID a número entero para asegurar que sea un integer y no un string
+              // Convert the ID to integer to ensure it is an integer and not a string
               formData.append("model_id", parseInt(container.dataset.modelId));
               formData.append("model_type", container.dataset.modelType);
               formData.append("directory", container.dataset.directory);
-              // Asegurar que dimensions siempre tenga valor
+              // Ensure dimensions always has a value
               formData.append("dimensions", container.dataset.dimensions || "1920x1080");
             });
 
@@ -111,29 +116,29 @@
 
             // Handle errors
             this.on("error", function(file, errorMessage) {
-              // Display error - con manejo mejorado para objetos
+              // Display error - with improved handling for objects
               let errorText = '';
 
-              // Si es un objeto (respuesta JSON del servidor)
+              // If it is an object (JSON response from server)
               if (typeof errorMessage === 'object') {
                 console.error('Error de Dropzone:', errorMessage);
 
-                // Si tiene mensaje específico en formato Laravel
+                // If it has a specific message in Laravel format
                 if (errorMessage.errors && Object.keys(errorMessage.errors).length > 0) {
-                  // Extraer el primer mensaje de error
+                  // Extract the first error message
                   const firstErrorField = Object.keys(errorMessage.errors)[0];
                   errorText = errorMessage.errors[firstErrorField][0];
                 }
-                // Si tiene un mensaje general
+                // If it has a general message
                 else if (errorMessage.message) {
                   errorText = errorMessage.message;
                 }
-                // Fallback genérico
+                // Generic fallback
                 else {
                   errorText = 'Error al subir la imagen. Inténtalo de nuevo.';
                 }
               } else {
-                // Si es un string simple
+                // If it is a simple string
                 errorText = errorMessage;
               }
 

@@ -23,15 +23,12 @@ return [
   |
   */
   'images' => [
-    'default_dimensions' => '1920x1080',
-    'pre_resize' => true,
-    'quality' => 90,
+    'quality' => 100,
     'max_files' => 10,
-    'max_filesize' => 10000, // en KB
-    'thumbnails' => [
-      'enabled' => true,
-      'dimensions' => '288x288',
-    ],
+    'pre_resize' => true,
+    'max_filesize' => 10000, // in KB
+    'default_dimensions' => '1920x1080',
+    'thumbnails' => ['enabled' => true, 'dimensions' => '288x288'],
   ],
 
   /*
@@ -56,10 +53,10 @@ return [
   |
   */
   'security' => [
-    // If true, any authenticated user can delete photos (use with caution)
-    'allow_all_authenticated_users' => false,
-
     // Custom access key for API or JavaScript requests
     'access_key' => null,
+
+    // If true, any authenticated user can delete photos (use with caution)
+    'allow_all_authenticated_users' => false,
   ],
 ];
