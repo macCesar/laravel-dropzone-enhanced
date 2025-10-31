@@ -33,9 +33,9 @@ trait HasPhotos
    *
    * @return string|null
    */
-  public function getMainPhotoUrl()
+  public function getMainPhotoUrl($dimensions = null, $format = null, $quality = null)
   {
-    return $this->mainPhoto()?->getUrl();
+    return $this->mainPhoto()?->getUrl($dimensions, $format, $quality);
   }
 
   /**

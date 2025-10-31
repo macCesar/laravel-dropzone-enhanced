@@ -13,7 +13,7 @@ A powerful and customizable Laravel package that enhances Dropzone.js to provide
 - **Automatic Thumbnail Generation**: Natively processes and creates thumbnails for fast-loading galleries.
 - **Full Management UI**: Includes drag & drop reordering, main image selection, lightbox preview, and secure deletion.
 - **Highly Customizable**: Configure everything from image dimensions and quality to storage disks and route middleware.
-- **Reliable URL Generation**: Uses Laravel's native storage URL methods for consistent image URLs across all environments.
+- **Smart URL Generation**: Automatic relative URL generation that works consistently across all environments (local, staging, production) without `.env` configuration hassles.
 - **Broad Compatibility**: Supports Laravel 8, 9, 10, and 11.
 
 ## Requirements
@@ -62,6 +62,75 @@ The package automatically corrects image orientation based on EXIF data from mob
 - JPEG images with EXIF metadata
 
 Images will display correctly oriented regardless of how they were captured on mobile devices.
+
+---
+
+## URL Generation
+
+### Relative vs Absolute URLs
+
+The package can optionally use **relative URLs** (e.g., `/storage/images/photo.jpg`) instead of absolute URLs (e.g., `http://localhost:8000/storage/images/photo.jpg`). This provides several benefits:
+
+- ✅ **Environment agnostic**: Works seamlessly across local, staging, and production without configuration changes
+- ✅ **No APP_URL conflicts**: You can keep `APP_URL` in your `.env` file without it affecting image URLs
+- ✅ **Better performance**: Relative URLs are lighter and load faster
+- ✅ **CDN friendly**: Easier to integrate with CDNs and reverse proxies
+
+### Configuration
+
+Control URL generation behavior in `config/dropzone.php`:
+
+```php
+'images' => [
+    // Use relative URLs (e.g., /storage/...) instead of absolute URLs (e.g., http://localhost:8000/storage/...)
+    // This prevents issues with APP_URL in .env and makes URLs work across different environments
+    'use_relative_urls' => true, // Default: false (disabled for backward compatibility)
+],
+```
+
+**Note**: This feature is disabled by default to maintain backward compatibility with existing installations.
+
+### Enabling Relative URLs
+
+To enable relative URLs (recommended for most use cases):
+
+**Step 1: Publish or update your config**
+```bash
+php artisan vendor:publish --tag=dropzoneenhanced-config --force
+```
+
+**Step 2: Enable the feature in config/dropzone.php**
+```php
+'images' => [
+    'use_relative_urls' => true,
+],
+```
+
+**Step 3: Clear config cache**
+```bash
+php artisan config:clear
+```
+
+**Option 2: Generate absolute URLs on-demand**
+```php
+// For a specific photo
+$relativeUrl = $photo->getUrl(); // /storage/images/photo.jpg
+$absoluteUrl = url($photo->getUrl()); // http://yourdomain.com/storage/images/photo.jpg
+
+// In Blade templates
+<img src="{{ url($photo->getUrl()) }}" alt="Photo">
+```
+
+### Migration from Previous Versions
+
+If you're upgrading from v2.1.7 or earlier:
+
+- **No action required**: Existing installations continue working with absolute URLs (default behavior)
+- **Optional but recommended**: Enable relative URLs for better portability:
+  1. Republish the config: `php artisan vendor:publish --tag=dropzoneenhanced-config --force`
+  2. Set `'use_relative_urls' => true` in `config/dropzone.php`
+  3. Clear config cache: `php artisan config:clear`
+- **If you had workarounds**: Once relative URLs are enabled, you can remove any workarounds like commenting out `APP_URL` in `.env`
 
 ---
 
@@ -1507,10 +1576,22 @@ Custom Filament view:
 5. Check the `getUrl()` method is returning valid URLs:
    ```php
    $photo = $product->photos->first();
-   dd($photo->getUrl()); // Should return a valid public URL
+   dd($photo->getUrl()); // Should return a valid URL (relative or absolute based on config)
    ```
 
-> **Note**: As of v2.1.5, URL generation has been optimized to use Laravel's native `Storage::disk()->url()` method, which automatically handles domain consistency across all environments (localhost, Herd, Valet, production).
+6. If you're seeing absolute URLs with `localhost:8000` or wrong domain:
+   ```bash
+   # Enable relative URLs feature to fix this issue
+   # Step 1: Republish config
+   php artisan vendor:publish --tag=dropzoneenhanced-config --force
+
+   # Step 2: Edit config/dropzone.php and set 'use_relative_urls' => true
+
+   # Step 3: Clear cache
+   php artisan config:clear
+   ```
+
+> **Note**: As of v2.1.8, you can enable **relative URLs** (`/storage/...`) to ensure consistency across all environments. This feature is opt-in (disabled by default) to maintain backward compatibility. Once enabled, it prevents issues with `APP_URL` in `.env` affecting image URLs.
 
 #### File Size Issues
 
@@ -1593,6 +1674,31 @@ A: Use the `thumbnailDimensions` prop on the photos component:
 
 **Q: Can I add custom validation rules?**
 A: Yes, extend the `DropzoneController` and override the `upload` method with your custom validation.
+
+**Q: Why are my image URLs showing `http://localhost:8000` in production?**
+A: Enable the relative URLs feature (available since v2.1.8) to prevent this issue:
+```bash
+# Step 1: Republish the config to get the new setting
+php artisan vendor:publish --tag=dropzoneenhanced-config --force
+
+# Step 2: Edit config/dropzone.php and set 'use_relative_urls' => true
+
+# Step 3: Clear config cache
+php artisan config:clear
+```
+
+**Q: How do I use absolute URLs instead of relative URLs?**
+A: Absolute URLs are the default behavior. The package only uses relative URLs if you explicitly enable it by setting `'use_relative_urls' => true` in `config/dropzone.php`.
+
+**Q: Can I mix relative and absolute URLs?**
+A: Yes, you can convert on-demand:
+```php
+// Get relative URL (default)
+$relativeUrl = $photo->getUrl(); // /storage/images/photo.jpg
+
+// Convert to absolute when needed
+$absoluteUrl = url($photo->getUrl()); // http://yourdomain.com/storage/images/photo.jpg
+```
 
 ## Development & Contributing
 

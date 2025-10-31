@@ -2,6 +2,68 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.1.8 - 2025-10-31
+
+### 🔧 URL Generation Enhancement
+
+#### Added
+- **Relative URL support**: New `use_relative_urls` configuration option in `config/dropzone.php`
+- **Smart URL conversion**: Automatic conversion from absolute to relative URLs when enabled
+- **Environment-agnostic URLs**: URLs now work consistently across all environments without manual configuration
+
+#### Fixed
+- **APP_URL dependency issue**: Resolved problem where `APP_URL` in `.env` forced absolute URLs with domain
+- **Local development URLs**: Fixed `http://localhost:8000/storage/...` appearing in generated URLs
+- **Production inconsistency**: Eliminated need to comment out `APP_URL` for proper URL generation
+
+#### Technical Improvements
+```php
+// Enhanced buildUrl() method in Photo model
+private function buildUrl($path)
+{
+    $url = Storage::disk($this->disk)->url($path);
+
+    // Check if we should use relative URLs (from config or default behavior)
+    $useRelativeUrls = config('dropzone.images.use_relative_urls', true);
+
+    if ($useRelativeUrls && str_starts_with($url, 'http')) {
+        // Convert absolute URL to relative by removing the domain
+        $parsedUrl = parse_url($url);
+        $url = ($parsedUrl['path'] ?? '') . (isset($parsedUrl['query']) ? '?' . $parsedUrl['query'] : '');
+    }
+
+    return $url;
+}
+```
+
+#### Configuration
+```php
+// config/dropzone.php
+'images' => [
+    // ...
+    // Use relative URLs (e.g., /storage/...) instead of absolute URLs
+    // This prevents issues with APP_URL in .env
+    'use_relative_urls' => true,
+],
+```
+
+#### Benefits
+- ✅ **No .env modifications needed**: Keep `APP_URL` configured without affecting image URLs
+- ✅ **Better portability**: Same code works in local, staging, and production environments
+- ✅ **Cleaner URLs**: Relative paths are lighter and more efficient
+- ✅ **Flexible configuration**: Easy toggle between relative and absolute URLs if needed
+- 🎯 **Backward compatible**: Works with existing installations without breaking changes
+
+#### Migration Notes
+- **New installations**: Relative URLs available but disabled by default (opt-in feature)
+- **Existing installations**: Backward compatible - continues using absolute URLs unless you enable the feature
+- **To enable relative URLs**: Republish config and set `use_relative_urls` to `true`:
+  ```bash
+  php artisan vendor:publish --tag=dropzoneenhanced-config --force
+  php artisan config:clear
+  ```
+- **No breaking changes**: Package defaults to absolute URLs if config key is not present
+
 ## 2.1.7 - 2025-09-03
 
 ### 🎨 Image Quality & Preview Enhancement

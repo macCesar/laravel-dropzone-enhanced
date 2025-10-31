@@ -280,8 +280,35 @@ class Photo extends Model
    */
   private function buildUrl($path)
   {
-    // Use Laravel's built-in Storage URL generation
-    return Storage::disk($this->disk)->url($path);
+    // Get the URL from Laravel's Storage
+    $url = Storage::disk($this->disk)->url($path);
+
+    // Check if we should use relative URLs (from config or default behavior)
+    // If config key doesn't exist, default to false to maintain backward compatibility
+    // with existing installations that haven't updated their config
+    $useRelativeUrls = config('dropzone.images.use_relative_urls');
+
+    // If the config value is null (key doesn't exist), use false for backward compatibility
+    if ($useRelativeUrls === null) {
+      $useRelativeUrls = false;
+    }
+
+    if ($useRelativeUrls) {
+      // Convert absolute or protocol-relative URLs to path-relative URLs
+      // Handle both http://domain/path and //domain/path formats
+      if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+        // Full absolute URL: http://domain/path or https://domain/path
+        $parsedUrl = parse_url($url);
+        $url = ($parsedUrl['path'] ?? '') . (isset($parsedUrl['query']) ? '?' . $parsedUrl['query'] : '');
+      } elseif (str_starts_with($url, '//')) {
+        // Protocol-relative URL: //domain/path
+        // Remove everything up to and including the domain
+        $url = preg_replace('#^//[^/]+#', '', $url);
+      }
+      // If already relative (/path), leave as is
+    }
+
+    return $url;
   }
 
   /**
@@ -324,12 +351,6 @@ class Photo extends Model
    */
   private function clearAllCache()
   {
-    // Simple approach: clear common cache patterns
-    $patterns = [
-      "photo_thumb_{$this->id}_*",
-      "photo_url_{$this->id}_*"
-    ];
-
     // Note: This is a simple implementation. For production with Redis,
     // you might want to use cache tags or a more sophisticated approach.
     $commonQualities = [null, 80, 90, 95];

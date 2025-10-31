@@ -29,6 +29,11 @@ return [
     'max_filesize' => 10000, // in KB
     'default_dimensions' => '1920x1080',
     'thumbnails' => ['enabled' => true, 'dimensions' => '288x288'],
+
+    // Use relative URLs (e.g., /storage/...) instead of absolute URLs (e.g., http://localhost:8000/storage/...)
+    // This prevents issues with APP_URL in .env and makes URLs work across different environments
+    // Set to true to enable this feature (disabled by default for backward compatibility)
+    'use_relative_urls' => false,
   ],
 
   /*
