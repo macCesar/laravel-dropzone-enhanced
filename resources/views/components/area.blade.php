@@ -69,7 +69,7 @@
           @endif
           thumbnailWidth: 576,
           thumbnailHeight: 576,
-          thumbnailMethod: "contain",
+          thumbnailMethod: "crop",
           createImageThumbnails: true,
           init: function() {
             const dropzone = this;
