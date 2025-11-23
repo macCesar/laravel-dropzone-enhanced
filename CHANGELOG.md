@@ -2,6 +2,50 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.1.10 - 2025-11-22
+
+### 🔄 Main Photo Fallback Enhancement
+
+#### Added
+- **Automatic fallback for mainPhoto()**: When no photo has `is_main = true`, returns the first photo by `sort_order`
+- **Auto-assign on unmark**: When unmarking a main photo, automatically assigns the next available photo as main
+
+#### Fixed
+- **Empty main photo issue**: `mainPhoto()` no longer returns `null` when photos exist but none is marked as main
+- **UI consistency**: Ensures there's always a main photo when photos exist
+
+#### Technical Details
+```php
+// HasPhotos trait - mainPhoto() now with fallback
+public function mainPhoto()
+{
+    return $this->photos->where('is_main', true)->first()
+        ?? $this->photos->first();
+}
+
+// DropzoneController - setMain() auto-assigns next photo
+if ($isMain) {
+    $photo->update(['is_main' => false]);
+
+    // Fallback: set first available photo as main
+    $firstPhoto = Photo::where('photoable_id', $photo->photoable_id)
+        ->where('photoable_type', $photo->photoable_type)
+        ->where('id', '!=', $photo->id)
+        ->orderBy('sort_order', 'asc')
+        ->first();
+
+    if ($firstPhoto) {
+        $firstPhoto->update(['is_main' => true]);
+    }
+}
+```
+
+#### Benefits
+- ✅ **Consistent behavior**: `mainPhoto()` always returns a photo when photos exist
+- ✅ **Better UX**: Users always see a main photo without manual intervention
+- ✅ **API response**: `setMain()` now returns `new_main_id` for frontend updates
+- 🎯 **Backward compatible**: No breaking changes to existing functionality
+
 ## 2.1.9 - 2025-10-31
 
 ### 🎨 UI Enhancement
