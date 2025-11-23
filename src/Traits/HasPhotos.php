@@ -25,7 +25,7 @@ trait HasPhotos
    */
   public function mainPhoto()
   {
-    return $this->photos->where('is_main', true)->first();
+    return $this->photos->where('is_main', true)->first() ?? $this->photos->first();
   }
 
   /**

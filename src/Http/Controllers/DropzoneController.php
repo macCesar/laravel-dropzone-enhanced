@@ -290,9 +290,21 @@ class DropzoneController extends Controller
     if ($isMain) {
       $photo->update(['is_main' => false]);
 
+      // Fallback: set first photo as main if exists
+      $firstPhoto = Photo::where('photoable_id', $photo->photoable_id)
+        ->where('photoable_type', $photo->photoable_type)
+        ->where('id', '!=', $photo->id)
+        ->orderBy('sort_order', 'asc')
+        ->first();
+
+      if ($firstPhoto) {
+        $firstPhoto->update(['is_main' => true]);
+      }
+
       return response()->json([
         'success' => true,
-        'is_main' => false
+        'is_main' => false,
+        'new_main_id' => $firstPhoto?->id
       ]);
     }
 
