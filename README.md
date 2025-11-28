@@ -294,8 +294,8 @@ These helpers work with the `HasPhotos` trait and the `Photo` model.
 
 - **Main photo shortcuts (trait)**  
   ```php
-  $model->src('300');                // width-only; keeps aspect ratio; uses mainPhoto(), fallback to first
-  $model->srcset('300x200', 3);      // 1x/2x/3x with the given dimensions
+$model->src('300');                // width-only; keeps aspect ratio; uses mainPhoto(), fallback to first
+$model->srcset('300x200', 3);      // 1x/2x/3x with the given dimensions
   ```
 
 - **Photo instance shortcuts**  
@@ -306,13 +306,15 @@ These helpers work with the `HasPhotos` trait and the `Photo` model.
 
 - **Raw storage paths (no relation needed)**  
   ```php
-  $model->srcFromPath('clients/avatar/main-photo.jpg', '320', 'webp');
-  $model->srcsetFromPath('clients/avatar/main-photo.jpg', '320x320', 3, 'jpg');
+$model->srcFromPath('clients/avatar/main-photo.jpg', '320', 'webp');
+$model->srcsetFromPath('clients/avatar/main-photo.jpg', '320x320', 3, 'jpg');
+$model->srcFromPath('clients/avatar/main-photo.jpg', '320x320', 'webp', null, null, 'top'); // Crop from top
   ```
 
 Notes:
 - If you pass width-only (`'300'`), height is inferred from the original aspect ratio; if it cannot be inferred, you get the original URL as 1x.
 - Respects `dropzone.storage.disk`, `dropzone.images.thumbnails.*`, and `use_relative_urls`.
+- `crop_position` is configurable globally (`config('dropzone.images.thumbnails.crop_position')`) and can be overridden per-call (e.g., `'top'`, `'bottom'`, `'left'`, `'right'`, `'top-left'`, etc.).
 - Internally uses `mainPhoto()` and falls back to the first photo when none is marked as main.
 
 ### Advanced Customization Examples

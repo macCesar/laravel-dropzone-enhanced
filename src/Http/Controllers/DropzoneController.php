@@ -65,6 +65,7 @@ class DropzoneController extends Controller
         $directory = dirname($fullPath);
         $filename = basename($fullPath);
         $thumbnailDimensions = config('dropzone.images.thumbnails.dimensions', '288x288');
+        $thumbnailCrop = config('dropzone.images.thumbnails.crop_position', 'center');
 
         // Generate thumbnail directory
         $thumbnailDir = $directory . '/thumbnails/' . $thumbnailDimensions;
@@ -80,7 +81,9 @@ class DropzoneController extends Controller
           (int) $thumbWidth,
           (int) $thumbHeight,
           $disk,
-          config('dropzone.images.quality', 90)
+          config('dropzone.images.quality', 90),
+          null,
+          $thumbnailCrop
         );
 
         if (!$thumbnailGenerated) {

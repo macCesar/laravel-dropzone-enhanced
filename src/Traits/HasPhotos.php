@@ -105,7 +105,8 @@ trait HasPhotos
     ?string $dimensions = null,
     ?string $format = null,
     ?int $quality = null,
-    ?string $disk = null
+    ?string $disk = null,
+    string $cropPosition = 'center'
   ): ?string {
     $disk ??= config('dropzone.storage.disk', config('filesystems.default'));
     $storage = Storage::disk($disk);
@@ -140,8 +141,10 @@ trait HasPhotos
       return $this->normalizePhotoUrl($storage->url($path));
     }
 
+    $cropPosition = $cropPosition ?: config('dropzone.images.thumbnails.crop_position', 'center');
     $dimensionsString = $width . 'x' . $height;
-    $thumbnailPath = $this->buildThumbnailPathFromPath($path, $dimensionsString, $format);
+    $canonicalCrop = ImageProcessor::canonicalCropPosition($cropPosition);
+    $thumbnailPath = $this->buildThumbnailPathFromPath($path, $dimensionsString, $format, $canonicalCrop);
     $quality ??= config('dropzone.images.thumbnails.quality', 90);
 
     if (
@@ -153,7 +156,8 @@ trait HasPhotos
         $height,
         $disk,
         $quality,
-        $format
+        $format,
+        $cropPosition
       )
     ) {
       return $this->normalizePhotoUrl($storage->url($thumbnailPath));
@@ -171,10 +175,11 @@ trait HasPhotos
    * @param string|null $format
    * @return string
    */
-  protected function buildThumbnailPathFromPath(string $path, string $dimensions, ?string $format = null): string
+  protected function buildThumbnailPathFromPath(string $path, string $dimensions, ?string $format = null, string $cropPosition = 'center'): string
   {
     $directory = dirname($path);
     $filename = basename($path);
+    $canonicalCrop = ImageProcessor::canonicalCropPosition($cropPosition);
 
     if ($format) {
       $pathInfo = pathinfo($filename);
@@ -182,7 +187,8 @@ trait HasPhotos
     }
 
     $pathSuffix = $format ? "_{$format}" : '';
-    return $directory . '/thumbnails/' . $dimensions . $pathSuffix . '/' . $filename;
+    $cropSuffix = $canonicalCrop !== 'center' ? '_' . str_replace('-', '_', $canonicalCrop) : '';
+    return $directory . '/thumbnails/' . $dimensions . $pathSuffix . $cropSuffix . '/' . $filename;
   }
 
   /**
@@ -247,9 +253,10 @@ trait HasPhotos
     ?string $dimensions = null,
     ?string $format = 'webp',
     ?int $quality = null,
-    ?string $disk = null
+    ?string $disk = null,
+    string $cropPosition = 'center'
   ): ?string {
-    return $this->getPhotoUrlFromPath($path, $dimensions, $format, $quality, $disk);
+    return $this->getPhotoUrlFromPath($path, $dimensions, $format, $quality, $disk, $cropPosition);
   }
 
   /**
@@ -269,7 +276,8 @@ trait HasPhotos
     int $multipliers = 2,
     ?string $format = 'webp',
     ?int $quality = null,
-    ?string $disk = null
+    ?string $disk = null,
+    string $cropPosition = 'center'
   ): ?string {
     $dimensions ??= config('dropzone.images.thumbnails.dimensions', '288x288');
     [$width, $height] = $this->parseDimensions($dimensions);
@@ -281,13 +289,13 @@ trait HasPhotos
     $urls = [];
 
     if (!$width || !$height) {
-      $single = $this->getPhotoUrlFromPath($path, null, $format, $quality, $disk);
+      $single = $this->getPhotoUrlFromPath($path, null, $format, $quality, $disk, $cropPosition);
       return $single ? "{$single} 1x" : null;
     }
 
     for ($i = 1; $i <= $multipliers; $i++) {
       $scaledDim = ($width * $i) . 'x' . ($height * $i);
-      $url = $this->getPhotoUrlFromPath($path, $scaledDim, $format, $quality, $disk);
+      $url = $this->getPhotoUrlFromPath($path, $scaledDim, $format, $quality, $disk, $cropPosition);
       if ($url) {
         $urls[] = "{$url} {$i}x";
       }

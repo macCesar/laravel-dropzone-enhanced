@@ -2,6 +2,12 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.1.12 - 2025-11-30
+
+### Added
+- Configurable crop alignment (`crop_position`) for generated thumbnails across helpers and controller uploads.
+- Supported positions: center (default), top/bottom/left/right, and corners (e.g., `top-left`), with canonicalized paths and cache keys.
+
 ## 2.1.11 - 2025-11-28
 
 ### ✨ Helpers and Aspect-Ratio Support

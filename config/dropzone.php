@@ -28,7 +28,11 @@ return [
     'pre_resize' => true,
     'max_filesize' => 10000, // in KB
     'default_dimensions' => '1920x1080',
-    'thumbnails' => ['enabled' => true, 'dimensions' => '288x288'],
+    'thumbnails' => [
+      'enabled' => true,
+      'dimensions' => '288x288',
+      'crop_position' => 'center', // options: center, top, bottom, left, right, top-left, top-right, bottom-left, bottom-right
+    ],
 
     // Use relative URLs (e.g., /storage/...) instead of absolute URLs (e.g., http://localhost:8000/storage/...)
     // This prevents issues with APP_URL in .env and makes URLs work across different environments

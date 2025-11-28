@@ -124,7 +124,7 @@ class Photo extends Model
    * @param int|null $quality Image quality 0-100 (null = use config default)
    * @return string
    */
-  public function getThumbnailUrl($dimensions = null, $format = null, $quality = null)
+  public function getThumbnailUrl($dimensions = null, $format = null, $quality = null, $cropPosition = 'center')
   {
     // Set default dimensions from config if not provided
     if (!$dimensions) {
@@ -146,17 +146,19 @@ class Photo extends Model
       return $this->getUrl();
     }
 
+    $cropPosition = $cropPosition ?: config('dropzone.images.thumbnails.crop_position', 'center');
     $dimensionsString = $width . 'x' . $height;
+    $canonicalCrop = ImageProcessor::canonicalCropPosition($cropPosition);
 
     // Check cache first (optimization #1: avoid repeated file system checks)
-    $cacheKey = "photo_thumb_{$this->id}_{$dimensionsString}_" . ($format ?? 'orig') . "_{$quality}";
+    $cacheKey = "photo_thumb_{$this->id}_{$dimensionsString}_" . ($format ?? 'orig') . "_{$quality}_{$canonicalCrop}";
 
     if (Cache::has($cacheKey)) {
       return Cache::get($cacheKey);
     }
 
     // Build thumbnail path
-    $thumbnailPath = $this->buildThumbnailPath($dimensionsString, $format);
+    $thumbnailPath = $this->buildThumbnailPath($dimensionsString, $format, $canonicalCrop);
 
     // Check if thumbnail already exists
     if (Storage::disk($this->disk)->exists($thumbnailPath)) {
@@ -167,7 +169,7 @@ class Photo extends Model
     }
 
     // Generate thumbnail dynamically if it doesn't exist
-    if ($this->generateThumbnail($dimensionsString, $format, $quality)) {
+    if ($this->generateThumbnail($dimensionsString, $format, $quality, $canonicalCrop)) {
       $url = $this->buildUrl($thumbnailPath);
       Cache::put($cacheKey, $url, 3600);
       return $url;
@@ -185,7 +187,7 @@ class Photo extends Model
    * @param int|null $quality Image quality 0-100 (null = use config default)
    * @return bool Success status
    */
-  public function generateThumbnail($dimensions, $format = null, $quality = null)
+  public function generateThumbnail($dimensions, $format = null, $quality = null, string $cropPosition = 'center')
   {
     // Basic validation (optimization #3: fail fast)
     if (!$dimensions || !preg_match('/^(\d+)x(\d+)$/', $dimensions, $matches)) {
@@ -197,7 +199,8 @@ class Photo extends Model
 
     // Build paths
     $sourcePath = $this->getPath();
-    $thumbnailPath = $this->buildThumbnailPath($dimensions, $format);
+    $cropPosition = $cropPosition ?: config('dropzone.images.thumbnails.crop_position', 'center');
+    $thumbnailPath = $this->buildThumbnailPath($dimensions, $format, ImageProcessor::canonicalCropPosition($cropPosition));
 
     // Get quality from config or parameter
     if ($quality === null) {
@@ -212,12 +215,13 @@ class Photo extends Model
       $height,
       $this->disk,
       $quality,
-      $format
+      $format,
+      $cropPosition
     );
 
     // Clear cache on successful generation (optimization #4: invalidate cache)
     if ($success) {
-      $this->clearThumbnailCache($dimensions, $format, $quality);
+      $this->clearThumbnailCache($dimensions, $format, $quality, $cropPosition);
     }
 
     return $success;
@@ -330,10 +334,11 @@ class Photo extends Model
    * @param string|null $format
    * @return string
    */
-  private function buildThumbnailPath($dimensions, $format = null)
+  private function buildThumbnailPath($dimensions, $format = null, string $cropPosition = 'center')
   {
     $directory = dirname($this->getPath());
     $filename = basename($this->getPath());
+    $canonicalCrop = ImageProcessor::canonicalCropPosition($cropPosition);
 
     // If format is specified, change file extension
     if ($format) {
@@ -342,7 +347,9 @@ class Photo extends Model
     }
 
     $pathSuffix = $format ? "_{$format}" : '';
-    return $directory . '/thumbnails/' . $dimensions . $pathSuffix . '/' . $filename;
+    $cropSuffix = $canonicalCrop !== 'center' ? '_' . str_replace('-', '_', $canonicalCrop) : '';
+
+    return $directory . '/thumbnails/' . $dimensions . $pathSuffix . $cropSuffix . '/' . $filename;
   }
 
   /**
@@ -352,9 +359,9 @@ class Photo extends Model
    * @param string|null $format
    * @param int|null $quality
    */
-  private function clearThumbnailCache($dimensions, $format = null, $quality = null)
+  private function clearThumbnailCache($dimensions, $format = null, $quality = null, string $cropPosition = 'center')
   {
-    $cacheKey = "photo_thumb_{$this->id}_{$dimensions}_" . ($format ?? 'orig') . "_{$quality}";
+    $cacheKey = "photo_thumb_{$this->id}_{$dimensions}_" . ($format ?? 'orig') . "_{$quality}_" . ImageProcessor::canonicalCropPosition($cropPosition);
     Cache::forget($cacheKey);
   }
 
@@ -368,11 +375,14 @@ class Photo extends Model
     $commonQualities = [null, 80, 90, 95];
     $commonFormats = [null, 'jpg', 'png', 'webp'];
     $commonDimensions = ['288x288', '400x400', '800x600', '1200x800'];
+    $cropPositions = ['center', 'top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
 
     foreach ($commonDimensions as $dim) {
       foreach ($commonFormats as $fmt) {
         foreach ($commonQualities as $qual) {
-          $this->clearThumbnailCache($dim, $fmt, $qual);
+          foreach ($cropPositions as $cropPos) {
+            $this->clearThumbnailCache($dim, $fmt, $qual, $cropPos);
+          }
         }
       }
     }

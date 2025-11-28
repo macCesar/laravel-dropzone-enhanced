@@ -19,7 +19,7 @@ class ImageProcessor
    * @param string|null $outputFormat Output format: 'jpg', 'png', 'webp', 'gif' (null = auto-detect from path)
    * @return bool Success status
    */
-  public static function generateThumbnail($sourcePath, $thumbnailPath, $width, $height, $disk = 'public', $quality = 90, $outputFormat = null)
+  public static function generateThumbnail($sourcePath, $thumbnailPath, $width, $height, $disk = 'public', $quality = 90, $outputFormat = null, string $cropPosition = 'center')
   {
     try {
       // Get the full path of the source image
@@ -69,7 +69,7 @@ class ImageProcessor
       $sourceImage = self::correctImageOrientation($sourceImage, $sourceFullPath);
 
       // Calculate dimensions maintaining aspect ratio with crop (optimization #4: cleaner calculation)
-      $cropData = self::calculateCropDimensions($sourceWidth, $sourceHeight, $width, $height);
+      $cropData = self::calculateCropDimensions($sourceWidth, $sourceHeight, $width, $height, $cropPosition);
 
       // Create thumbnail image with error checking
       $thumbnail = imagecreatetruecolor($width, $height);
@@ -222,8 +222,9 @@ class ImageProcessor
    * @param int $targetHeight
    * @return array
    */
-  private static function calculateCropDimensions($sourceWidth, $sourceHeight, $targetWidth, $targetHeight)
+  private static function calculateCropDimensions($sourceWidth, $sourceHeight, $targetWidth, $targetHeight, string $cropPosition = 'center')
   {
+    [$hAlign, $vAlign] = self::parseCropPosition($cropPosition);
     $sourceRatio = $sourceWidth / $sourceHeight;
     $targetRatio = $targetWidth / $targetHeight;
 
@@ -231,14 +232,24 @@ class ImageProcessor
       // Source is wider, crop width
       $newHeight = $sourceHeight;
       $newWidth = $sourceHeight * $targetRatio;
-      $cropX = ($sourceWidth - $newWidth) / 2;
+      $excessX = $sourceWidth - $newWidth;
+      $cropX = match ($hAlign) {
+        'left' => 0,
+        'right' => $excessX,
+        default => $excessX / 2,
+      };
       $cropY = 0;
     } else {
       // Source is taller, crop height
       $newWidth = $sourceWidth;
       $newHeight = $sourceWidth / $targetRatio;
+      $excessY = $sourceHeight - $newHeight;
       $cropX = 0;
-      $cropY = ($sourceHeight - $newHeight) / 2;
+      $cropY = match ($vAlign) {
+        'top' => 0,
+        'bottom' => $excessY,
+        default => $excessY / 2,
+      };
     }
 
     return [
@@ -246,6 +257,90 @@ class ImageProcessor
       'newHeight' => (int) $newHeight,
       'cropX' => (int) $cropX,
       'cropY' => (int) $cropY,
+    ];
+  }
+
+  /**
+   * Normalize crop position into horizontal/vertical alignment tokens.
+   *
+   * @param string $cropPosition
+   * @return array{0:string,1:string} [horizontalAlign, verticalAlign]
+   */
+  private static function parseCropPosition(string $cropPosition): array
+  {
+    $normalized = self::normalizeCropPosition($cropPosition);
+    $map = self::cropPositionMap();
+
+    return $map[$normalized] ?? $map['center'];
+  }
+
+  /**
+   * Return a canonical crop position string (used for paths/cache keys).
+   */
+  public static function canonicalCropPosition(string $cropPosition): string
+  {
+    [$hAlign, $vAlign] = self::parseCropPosition($cropPosition);
+
+    if ($hAlign === 'center' && $vAlign === 'center') {
+      return 'center';
+    }
+
+    if ($vAlign === 'center') {
+      return $hAlign;
+    }
+
+    if ($hAlign === 'center') {
+      return $vAlign;
+    }
+
+    return "{$vAlign}-{$hAlign}";
+  }
+
+  /**
+   * Normalize an incoming crop position string to a supported token.
+   */
+  public static function normalizeCropPosition(string $cropPosition): string
+  {
+    $normalized = strtolower(str_replace('_', '-', trim($cropPosition))) ?: 'center';
+    $map = self::cropPositionMap();
+
+    if (array_key_exists($normalized, $map)) {
+      return $normalized;
+    }
+
+    return 'center';
+  }
+
+  /**
+   * Allowed crop positions with their horizontal/vertical alignments.
+   *
+   * @return array<string,array{0:string,1:string}>
+   */
+  private static function cropPositionMap(): array
+  {
+    return [
+      'center' => ['center', 'center'],
+      'middle' => ['center', 'center'],
+      'top' => ['center', 'top'],
+      'bottom' => ['center', 'bottom'],
+      'left' => ['left', 'center'],
+      'right' => ['right', 'center'],
+      'top-left' => ['left', 'top'],
+      'left-top' => ['left', 'top'],
+      'top-right' => ['right', 'top'],
+      'right-top' => ['right', 'top'],
+      'bottom-left' => ['left', 'bottom'],
+      'left-bottom' => ['left', 'bottom'],
+      'bottom-right' => ['right', 'bottom'],
+      'right-bottom' => ['right', 'bottom'],
+      'center-left' => ['left', 'center'],
+      'left-center' => ['left', 'center'],
+      'center-right' => ['right', 'center'],
+      'right-center' => ['right', 'center'],
+      'center-top' => ['center', 'top'],
+      'top-center' => ['center', 'top'],
+      'center-bottom' => ['center', 'bottom'],
+      'bottom-center' => ['center', 'bottom'],
     ];
   }
 
