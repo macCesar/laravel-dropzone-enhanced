@@ -14,6 +14,7 @@ A powerful and customizable Laravel package that enhances Dropzone.js to provide
 - **Full Management UI**: Includes drag & drop reordering, main image selection, lightbox preview, and secure deletion.
 - **Highly Customizable**: Configure everything from image dimensions and quality to storage disks and route middleware.
 - **Smart URL Generation**: Automatic relative URL generation that works consistently across all environments (local, staging, production) without `.env` configuration hassles.
+- **Handy Helpers**: `src`/`srcset` helpers on models and photos (including raw storage paths) for quick, optimized URLs.
 - **Broad Compatibility**: Supports Laravel 8, 9, 10, and 11.
 
 ## Requirements
@@ -211,15 +212,25 @@ In your Blade view (e.g., `resources/views/products/edit.blade.php`), add the tw
 
 This component provides the file upload interface.
 
-| Parameter         | Type     | Description                                                                                 | Default                                        |
-| :---------------- | :------- | :------------------------------------------------------------------------------------------ | :--------------------------------------------- |
-| `:model`          | `Model`  | **Required.** The Eloquent model instance to attach photos to.                              |                                                |
-| `directory`       | `string` | **Required.** The subdirectory within your storage disk to save the images.                 |                                                |
-| `dimensions`      | `string` | Max dimensions for resize (e.g., "1920x1080").                                              | `config('dropzone.images.default_dimensions')` |
-| `preResize`       | `bool`   | Whether to resize the image in the browser before upload. Set `false` to preserve original quality. | `config('dropzone.images.pre_resize')`         |
-| `maxFiles`        | `int`    | Maximum number of files allowed to be uploaded.                                             | `config('dropzone.images.max_files')`          |
-| `maxFilesize`     | `int`    | Maximum file size in MB.                                                                    | `config('dropzone.images.max_filesize')`       |
-| `reloadOnSuccess` | `bool`   | If `true`, the page will automatically reload after all uploads are successfully completed. | `false`                                        |
+| Parameter          | Type     | Description                                                                                         | Default                                        |
+| :----------------- | :------- | :-------------------------------------------------------------------------------------------------- | :--------------------------------------------- |
+| `:model`           | `Model`  | **Required.** The Eloquent model instance to attach photos to.                                      |                                                |
+| `directory`        | `string` | **Required.** The subdirectory within your storage disk to save the images.                         |                                                |
+| `dimensions`       | `string` | Max dimensions for resize (e.g., "1920x1080").                                                      | `config('dropzone.images.default_dimensions')` |
+| `preResize`        | `bool`   | Whether to resize the image in the browser before upload. Set `false` to preserve original quality. | `config('dropzone.images.pre_resize')`         |
+| `maxFiles`         | `int`    | Maximum number of files allowed to be uploaded.                                                     | `config('dropzone.images.max_files')`          |
+| `maxFilesize`      | `int`    | Maximum file size in MB.                                                                            | `config('dropzone.images.max_filesize')`       |
+| `reloadOnSuccess`  | `bool`   | If `true`, the page will automatically reload after all uploads are successfully completed.         | `false`                                        |
+| `keepOriginalName` | `bool`   | If `true`, store files using the sanitized original filename (adds numeric suffix on collisions).   | `false`                                        |
+
+Example: keep original filenames in a custom directory
+```blade
+<x-dropzone-enhanced::area
+  :model="$product"
+  directory="uploaded-files"
+  :keepOriginalName="true"
+/>
+```
 
 ### Gallery: `<x-dropzone-enhanced::photos />`
 
@@ -267,7 +278,42 @@ if ($product->hasPhotos()) {
 
 // Delete all photos associated with the model
 $product->deleteAllPhotos();
+
+// Quick helpers (NEW)
+$product->src('300'); // Main photo, width-only; keeps aspect ratio
+$product->srcset('300x200', 3, 'jpg'); // 1x/2x/3x srcset for main photo
+$photo->src('400'); // Specific Photo model, width-only
+$photo->srcset('400x300', 2, 'webp'); // Srcset for a Photo model
+$product->srcFromPath('clients/avatar/main-photo.jpg', '300', 'webp'); // Any storage path
+$product->srcsetFromPath('clients/avatar/main-photo.jpg', '300x300', 3, 'jpg'); // Srcset from storage path
 ```
+
+### Image Helper Cheatsheet
+
+These helpers work with the `HasPhotos` trait and the `Photo` model.
+
+- **Main photo shortcuts (trait)**  
+  ```php
+  $model->src('300');                // width-only; keeps aspect ratio; uses mainPhoto(), fallback to first
+  $model->srcset('300x200', 3);      // 1x/2x/3x with the given dimensions
+  ```
+
+- **Photo instance shortcuts**  
+  ```php
+  $photo->src('400');                // width-only; keeps aspect ratio from the original
+  $photo->srcset('400x300', 2, 'jpg'); // srcset 1x/2x in JPG
+  ```
+
+- **Raw storage paths (no relation needed)**  
+  ```php
+  $model->srcFromPath('clients/avatar/main-photo.jpg', '320', 'webp');
+  $model->srcsetFromPath('clients/avatar/main-photo.jpg', '320x320', 3, 'jpg');
+  ```
+
+Notes:
+- If you pass width-only (`'300'`), height is inferred from the original aspect ratio; if it cannot be inferred, you get the original URL as 1x.
+- Respects `dropzone.storage.disk`, `dropzone.images.thumbnails.*`, and `use_relative_urls`.
+- Internally uses `mainPhoto()` and falls back to the first photo when none is marked as main.
 
 ### Advanced Customization Examples
 

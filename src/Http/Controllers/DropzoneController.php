@@ -26,6 +26,7 @@ class DropzoneController extends Controller
         'model_id' => 'required|integer',
         'model_type' => 'required|string',
         'dimensions' => 'nullable|string',
+        'keep_original_name' => 'nullable|boolean',
         'file' => 'required|file|image|max:' . config('dropzone.images.max_filesize', 5000),
       ]);
 
@@ -36,10 +37,18 @@ class DropzoneController extends Controller
       $modelType = $request->input('model_type');
       $disk = config('dropzone.storage.disk', 'public');
       $dimensions = $request->input('dimensions', config('dropzone.images.default_dimensions'));
+      $keepOriginalName = $request->boolean('keep_original_name', false);
 
-      // Generate a unique filename
+      // Generate filename (UUID or sanitized original name)
       $extension = $file->getClientOriginalExtension();
-      $filename = Str::uuid() . '.' . $extension;
+      if ($keepOriginalName) {
+        $originalBaseName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        $sanitizedBaseName = Str::slug($originalBaseName) ?: 'file';
+        $filename = $this->generateUniqueFilename($directory, $sanitizedBaseName, $extension, $disk);
+      } else {
+        $filename = Str::uuid() . '.' . $extension;
+      }
+
       $fullPath = $directory . '/' . $filename;
 
       // Upload file
@@ -366,5 +375,33 @@ class DropzoneController extends Controller
         'message' => $e->getMessage()
       ], 500);
     }
+  }
+
+  /**
+   * Generate a unique filename within a directory (adds numeric suffix if needed).
+   *
+   * @param string $directory
+   * @param string $baseName
+   * @param string $extension
+   * @param string $disk
+   * @return string
+   */
+  protected function generateUniqueFilename(string $directory, string $baseName, string $extension, string $disk): string
+  {
+    $storage = Storage::disk($disk);
+    $candidate = $baseName . '.' . $extension;
+    $counter = 1;
+
+    while ($storage->exists($directory . '/' . $candidate)) {
+      $candidate = $baseName . '-' . $counter . '.' . $extension;
+      $counter++;
+
+      // Prevent infinite loops; fall back to UUID if too many collisions
+      if ($counter > 1000) {
+        return Str::uuid() . '.' . $extension;
+      }
+    }
+
+    return $candidate;
   }
 }

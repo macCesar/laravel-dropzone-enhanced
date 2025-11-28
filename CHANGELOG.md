@@ -2,6 +2,24 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.1.11 - 2025-11-28
+
+### ✨ Helpers and Aspect-Ratio Support
+
+#### Added
+- `src()` and `srcset()` helpers on `Photo` to generate optimized URLs and srcsets directly from the model
+- `src()` and `srcset()` helpers on `HasPhotos` to get the main photo (fallback to first photo) without chaining
+- `srcFromPath()` and `srcsetFromPath()` on `HasPhotos` to process any storage path (e.g., `clients/avatar/main-photo.jpg`) through `ImageProcessor`
+- `keepOriginalName` option on `<x-dropzone-enhanced::area />` to store files with sanitized original filenames (adds suffix on collisions)
+
+#### Changed
+- `Photo::getThumbnailUrl()` now accepts width-only dimensions; height is inferred from the original aspect ratio
+- Trait helpers and path helpers also accept width-only dimensions with automatic height inference
+
+#### Notes
+- Helpers respect existing config: `dropzone.storage.disk`, `dropzone.images.thumbnails.*`, and `use_relative_urls`
+- If no main photo is marked, helpers still return the first available photo
+
 ## 2.1.10 - 2025-11-22
 
 ### 🔄 Main Photo Fallback Enhancement

@@ -136,15 +136,27 @@ class Photo extends Model
       return $this->getUrl();
     }
 
+    // Resolve dimensions (supports width-only by keeping aspect ratio)
+    [$width, $height] = $this->resolveDimensions($dimensions);
+    if ($width && !$height) {
+      $height = $this->inferHeightFromOriginal($width);
+    }
+
+    if (!$width || !$height) {
+      return $this->getUrl();
+    }
+
+    $dimensionsString = $width . 'x' . $height;
+
     // Check cache first (optimization #1: avoid repeated file system checks)
-    $cacheKey = "photo_thumb_{$this->id}_{$dimensions}_" . ($format ?? 'orig') . "_{$quality}";
+    $cacheKey = "photo_thumb_{$this->id}_{$dimensionsString}_" . ($format ?? 'orig') . "_{$quality}";
 
     if (Cache::has($cacheKey)) {
       return Cache::get($cacheKey);
     }
 
     // Build thumbnail path
-    $thumbnailPath = $this->buildThumbnailPath($dimensions, $format);
+    $thumbnailPath = $this->buildThumbnailPath($dimensionsString, $format);
 
     // Check if thumbnail already exists
     if (Storage::disk($this->disk)->exists($thumbnailPath)) {
@@ -155,7 +167,7 @@ class Photo extends Model
     }
 
     // Generate thumbnail dynamically if it doesn't exist
-    if ($this->generateThumbnail($dimensions, $format, $quality)) {
+    if ($this->generateThumbnail($dimensionsString, $format, $quality)) {
       $url = $this->buildUrl($thumbnailPath);
       Cache::put($cacheKey, $url, 3600);
       return $url;
@@ -364,5 +376,94 @@ class Photo extends Model
         }
       }
     }
+  }
+
+  /**
+   * Convenience: get URL with optional resize/convert (alias for getUrl).
+   *
+   * @param string|null $dimensions
+   * @param string|null $format
+   * @param int|null $quality
+   * @return string
+   */
+  public function src(?string $dimensions = null, ?string $format = 'webp', ?int $quality = null)
+  {
+    return $this->getUrl($dimensions, $format, $quality);
+  }
+
+  /**
+   * Convenience: build srcset for this photo.
+   *
+   * @param string|null $dimensions
+   * @param int $multipliers
+   * @param string|null $format
+   * @param int|null $quality
+   * @return string|null
+   */
+  public function srcset(
+    ?string $dimensions = null,
+    int $multipliers = 2,
+    ?string $format = 'webp',
+    ?int $quality = null
+  ): ?string {
+    $dimensions ??= config('dropzone.images.thumbnails.dimensions', '288x288');
+    [$width, $height] = $this->resolveDimensions($dimensions);
+    if ($width && !$height) {
+      $height = $this->inferHeightFromOriginal($width);
+    }
+
+    if (!$width || !$height) {
+      $single = $this->getUrl($dimensions, $format, $quality);
+      return $single ? "{$single} 1x" : null;
+    }
+
+    $urls = [];
+    for ($i = 1; $i <= $multipliers; $i++) {
+      $scaledDim = ($width * $i) . 'x' . ($height * $i);
+      $url = $this->getUrl($scaledDim, $format, $quality);
+      if ($url) {
+        $urls[] = "{$url} {$i}x";
+      }
+    }
+
+    return $urls ? implode(', ', $urls) : null;
+  }
+
+  /**
+   * Resolve dimensions string into width/height integers.
+   *
+   * @param string|null $dimensions
+   * @return array{0:int|null,1:int|null}
+   */
+  private function resolveDimensions(?string $dimensions): array
+  {
+    if (!$dimensions) {
+      return [null, null];
+    }
+
+    if (ctype_digit((string) $dimensions)) {
+      return [(int) $dimensions, null];
+    }
+
+    if (preg_match('/^(\\d+)x(\\d+)$/', $dimensions, $matches)) {
+      return [(int) $matches[1], (int) $matches[2]];
+    }
+
+    return [null, null];
+  }
+
+  /**
+   * Infer height using original photo aspect ratio.
+   *
+   * @param int $targetWidth
+   * @return int|null
+   */
+  private function inferHeightFromOriginal(int $targetWidth): ?int
+  {
+    if ($this->width && $this->height && $this->width > 0) {
+      return (int) round($this->height * ($targetWidth / $this->width));
+    }
+
+    return null;
   }
 }

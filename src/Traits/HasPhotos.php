@@ -3,7 +3,9 @@
 namespace MacCesar\LaravelDropzoneEnhanced\Traits;
 
 use MacCesar\LaravelDropzoneEnhanced\Models\Photo;
+use MacCesar\LaravelDropzoneEnhanced\Services\ImageProcessor;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Facades\Storage;
 
 trait HasPhotos
 {
@@ -89,6 +91,131 @@ trait HasPhotos
   }
 
   /**
+   * Get an optimized image URL from a storage path (independent of the photos relation).
+   *
+   * @param string $path Relative path on disk (e.g., "clients/avatar/main-photo.jpg")
+   * @param string|null $dimensions Format: "widthxheight" (e.g., "400x400")
+   * @param string|null $format Output format: 'jpg', 'png', 'webp', 'gif' (null = keep original)
+   * @param int|null $quality Image quality 0-100 (null = config default)
+   * @param string|null $disk Storage disk (null = dropzone.storage.disk or default filesystem disk)
+   * @return string|null
+   */
+  public function getPhotoUrlFromPath(
+    string $path,
+    ?string $dimensions = null,
+    ?string $format = null,
+    ?int $quality = null,
+    ?string $disk = null
+  ): ?string {
+    $disk ??= config('dropzone.storage.disk', config('filesystems.default'));
+    $storage = Storage::disk($disk);
+
+    if (!$storage->exists($path)) {
+      return null;
+    }
+
+    // If only format is provided, use default thumbnail dimensions (same behavior as Photo::getThumbnailUrl)
+    if (!$dimensions && $format) {
+      $dimensions = config('dropzone.images.thumbnails.dimensions', '288x288');
+    }
+
+    // If no processing is requested, return the original URL
+    if (!$dimensions && !$format) {
+      return $this->normalizePhotoUrl($storage->url($path));
+    }
+
+    // Respect config: if thumbnails are disabled, return original
+    if (!config('dropzone.images.thumbnails.enabled', true)) {
+      return $this->normalizePhotoUrl($storage->url($path));
+    }
+
+    [$width, $height] = $this->parseDimensions($dimensions);
+
+    if ($width && !$height) {
+      $height = $this->inferHeightFromPath($path, $width, $disk);
+    }
+
+    // If dimensions could not be resolved, return original
+    if (!$width || !$height) {
+      return $this->normalizePhotoUrl($storage->url($path));
+    }
+
+    $dimensionsString = $width . 'x' . $height;
+    $thumbnailPath = $this->buildThumbnailPathFromPath($path, $dimensionsString, $format);
+    $quality ??= config('dropzone.images.thumbnails.quality', 90);
+
+    if (
+      $storage->exists($thumbnailPath) ||
+      ImageProcessor::generateThumbnail(
+        $path,
+        $thumbnailPath,
+        $width,
+        $height,
+        $disk,
+        $quality,
+        $format
+      )
+    ) {
+      return $this->normalizePhotoUrl($storage->url($thumbnailPath));
+    }
+
+    // Fallback to original URL if generation fails
+    return $this->normalizePhotoUrl($storage->url($path));
+  }
+
+  /**
+   * Build thumbnail path for a raw storage path.
+   *
+   * @param string $path
+   * @param string $dimensions
+   * @param string|null $format
+   * @return string
+   */
+  protected function buildThumbnailPathFromPath(string $path, string $dimensions, ?string $format = null): string
+  {
+    $directory = dirname($path);
+    $filename = basename($path);
+
+    if ($format) {
+      $pathInfo = pathinfo($filename);
+      $filename = $pathInfo['filename'] . '.' . $format;
+    }
+
+    $pathSuffix = $format ? "_{$format}" : '';
+    return $directory . '/thumbnails/' . $dimensions . $pathSuffix . '/' . $filename;
+  }
+
+  /**
+   * Normalize URL according to configuration (relative vs absolute).
+   *
+   * @param string $url
+   * @return string
+   */
+  protected function normalizePhotoUrl(string $url): string
+  {
+    $useRelativeUrls = config('dropzone.images.use_relative_urls');
+
+    if ($useRelativeUrls === null) {
+      $useRelativeUrls = false;
+    }
+
+    if (!$useRelativeUrls) {
+      return $url;
+    }
+
+    if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+      $parsedUrl = parse_url($url);
+      return ($parsedUrl['path'] ?? '') . (isset($parsedUrl['query']) ? '?' . $parsedUrl['query'] : '');
+    }
+
+    if (str_starts_with($url, '//')) {
+      return preg_replace('#^//[^/]+#', '', $url);
+    }
+
+    return $url;
+  }
+
+  /**
    * Boot the trait.
    *
    * @return void
@@ -103,5 +230,196 @@ trait HasPhotos
 
       $model->deleteAllPhotos();
     });
+  }
+
+  /**
+   * Convenience: get a URL for a storage path (resize/convert optional).
+   *
+   * @param string $path
+   * @param string|null $dimensions
+   * @param string|null $format
+   * @param int|null $quality
+   * @param string|null $disk
+   * @return string|null
+   */
+  public function srcFromPath(
+    string $path,
+    ?string $dimensions = null,
+    ?string $format = 'webp',
+    ?int $quality = null,
+    ?string $disk = null
+  ): ?string {
+    return $this->getPhotoUrlFromPath($path, $dimensions, $format, $quality, $disk);
+  }
+
+  /**
+   * Convenience: build a srcset for a storage path.
+   *
+   * @param string $path
+   * @param string|null $dimensions
+   * @param int $multipliers
+   * @param string|null $format
+   * @param int|null $quality
+   * @param string|null $disk
+   * @return string|null
+   */
+  public function srcsetFromPath(
+    string $path,
+    ?string $dimensions = null,
+    int $multipliers = 2,
+    ?string $format = 'webp',
+    ?int $quality = null,
+    ?string $disk = null
+  ): ?string {
+    $dimensions ??= config('dropzone.images.thumbnails.dimensions', '288x288');
+    [$width, $height] = $this->parseDimensions($dimensions);
+
+    if ($width && !$height) {
+      $height = $this->inferHeightFromPath($path, $width, $disk ?? config('dropzone.storage.disk', config('filesystems.default')));
+    }
+
+    $urls = [];
+
+    if (!$width || !$height) {
+      $single = $this->getPhotoUrlFromPath($path, null, $format, $quality, $disk);
+      return $single ? "{$single} 1x" : null;
+    }
+
+    for ($i = 1; $i <= $multipliers; $i++) {
+      $scaledDim = ($width * $i) . 'x' . ($height * $i);
+      $url = $this->getPhotoUrlFromPath($path, $scaledDim, $format, $quality, $disk);
+      if ($url) {
+        $urls[] = "{$url} {$i}x";
+      }
+    }
+
+    return $urls ? implode(', ', $urls) : null;
+  }
+
+  /**
+   * Convenience: get main photo URL with optional resize/convert.
+   *
+   * @param string|null $dimensions
+   * @param string|null $format
+   * @param int|null $quality
+   * @return string|null
+   */
+  public function src(?string $dimensions = null, ?string $format = 'webp', ?int $quality = null): ?string
+  {
+    $photo = $this->mainPhoto();
+
+    if (!$photo) {
+      return null;
+    }
+
+    return $photo->getUrl($dimensions, $format, $quality);
+  }
+
+  /**
+   * Convenience: build srcset for the main photo.
+   *
+   * @param string|null $dimensions
+   * @param int $multipliers
+   * @param string|null $format
+   * @param int|null $quality
+   * @return string|null
+   */
+  public function srcset(
+    ?string $dimensions = null,
+    int $multipliers = 2,
+    ?string $format = 'webp',
+    ?int $quality = null
+  ): ?string {
+    $photo = $this->mainPhoto();
+
+    if (!$photo) {
+      return null;
+    }
+
+    $dimensions ??= config('dropzone.images.thumbnails.dimensions', '288x288');
+    [$width, $height] = $this->parseDimensions($dimensions);
+    if ($width && !$height) {
+      $height = $this->inferHeightFromPhoto($photo, $width);
+    }
+    $urls = [];
+
+    if (!$width || !$height) {
+      $single = $photo->getUrl($dimensions, $format, $quality);
+      return $single ? "{$single} 1x" : null;
+    }
+
+    for ($i = 1; $i <= $multipliers; $i++) {
+      $scaledDim = ($width * $i) . 'x' . ($height * $i);
+      $url = $photo->getUrl($scaledDim, $format, $quality);
+      if ($url) {
+        $urls[] = "{$url} {$i}x";
+      }
+    }
+
+    return $urls ? implode(', ', $urls) : null;
+  }
+
+  /**
+   * Parse dimensions string (e.g., "800x600") into width/height integers.
+   *
+   * @param string|null $dimensions
+   * @return array{0:int|null,1:int|null}
+   */
+  protected function parseDimensions(?string $dimensions): array
+  {
+    if (!$dimensions) {
+      return [null, null];
+    }
+
+    if (ctype_digit((string) $dimensions)) {
+      return [(int) $dimensions, null];
+    }
+
+    $parts = explode('x', $dimensions);
+    $width = isset($parts[0]) && ctype_digit((string) $parts[0]) ? (int) $parts[0] : null;
+    $height = isset($parts[1]) && ctype_digit((string) $parts[1]) ? (int) $parts[1] : null;
+
+    return [$width, $height];
+  }
+
+  /**
+   * Infer height using original photo aspect ratio.
+   *
+   * @param \MacCesar\LaravelDropzoneEnhanced\Models\Photo $photo
+   * @param int $targetWidth
+   * @return int|null
+   */
+  protected function inferHeightFromPhoto(Photo $photo, int $targetWidth): ?int
+  {
+    if ($photo->width && $photo->height && $photo->width > 0) {
+      return (int) round($photo->height * ($targetWidth / $photo->width));
+    }
+
+    return null;
+  }
+
+  /**
+   * Infer height from a raw storage path using original aspect ratio.
+   *
+   * @param string $path
+   * @param int $targetWidth
+   * @param string $disk
+   * @return int|null
+   */
+  protected function inferHeightFromPath(string $path, int $targetWidth, string $disk): ?int
+  {
+    $storage = Storage::disk($disk);
+    $fullPath = $storage->path($path);
+
+    if (!file_exists($fullPath)) {
+      return null;
+    }
+
+    $info = @getimagesize($fullPath);
+    if (!$info || empty($info[0]) || empty($info[1]) || $info[0] <= 0) {
+      return null;
+    }
+
+    return (int) round($info[1] * ($targetWidth / $info[0]));
   }
 }
