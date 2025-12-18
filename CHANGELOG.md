@@ -2,6 +2,16 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.1.13 - 2025-12-17
+
+### Added
+- `--no-interaction` flag support in `dropzoneenhanced:install` command for automated/scripted installations
+- Automatic migration execution in non-interactive mode (no user prompt)
+
+### Changed
+- Install command now properly handles both interactive and non-interactive modes
+- Non-interactive installations run migrations automatically (perfect for CI/CD and package auto-installers)
+
 ## 2.1.12 - 2025-11-30
 
 ### Added

@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Schema;
 class InstallDropzoneEnhanced extends Command
 {
   // New canonical command name (prefix without hyphen)
-  protected $signature = 'dropzoneenhanced:install';
+  protected $signature = 'dropzoneenhanced:install {--no-interaction : Run without prompts}';
 
   // Backward-compatible alias for previous command name
   protected $aliases = ['dropzone-enhanced:install'];
@@ -43,9 +43,17 @@ class InstallDropzoneEnhanced extends Command
       $this->warn('Please run: php artisan vendor:publish --tag=dropzoneenhanced-assets');
     }
 
-    if ($this->confirm('Run migrations now?')) {
+    // Handle migrations based on interaction mode
+    if ($this->option('no-interaction')) {
+      // Non-interactive mode: run migrations automatically
       $this->info('Running migrations...');
       $this->callSilent('migrate');
+    } else {
+      // Interactive mode: ask user
+      if ($this->confirm('Run migrations now?', true)) {
+        $this->info('Running migrations...');
+        $this->callSilent('migrate');
+      }
     }
 
     $this->info('Laravel Dropzone Enhanced has been installed successfully.');

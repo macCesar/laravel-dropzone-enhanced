@@ -36,9 +36,17 @@ This command publishes the config file, migrations, and assets.
 ```bash
 php artisan dropzoneenhanced:install
 ```
+
+**Installation Options:**
+- **Interactive mode (default)**: Prompts to run migrations
+- **Non-interactive mode**: Runs migrations automatically without prompts
+  ```bash
+  php artisan dropzoneenhanced:install --no-interaction
+  ```
+
 Note: The legacy alias `dropzone-enhanced:install` still works.
 
-**3. Run Migrations**
+**3. Run Migrations** (skip if using `--no-interaction`)
 ```bash
 php artisan migrate
 ```
