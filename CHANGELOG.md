@@ -2,6 +2,11 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.4.1 - 2025-12-19
+
+### Changed
+- Translation overrides now publish to `lang/vendor/dropzone-enhanced` and are loaded when present.
+
 ## 2.4.0 - 2025-12-19
 
 ### Added

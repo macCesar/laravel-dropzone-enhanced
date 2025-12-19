@@ -35,8 +35,14 @@ class DropzoneServiceProvider extends ServiceProvider
     // Load views
     $this->loadViewsFrom(__DIR__ . '/../resources/views', 'dropzone-enhanced');
 
-    // Load translations
+    // Load translations (package defaults + published overrides)
     $this->loadTranslationsFrom(__DIR__ . '/../resources/lang', 'dropzone-enhanced');
+    $publishedLangPath = function_exists('lang_path')
+      ? lang_path('vendor/dropzone-enhanced')
+      : resource_path('lang/vendor/dropzone-enhanced');
+    if (is_dir($publishedLangPath)) {
+      $this->loadTranslationsFrom($publishedLangPath, 'dropzone-enhanced');
+    }
 
     // Load migrations automatically
     $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
@@ -63,10 +69,10 @@ class DropzoneServiceProvider extends ServiceProvider
       // Publish translations
       // Translations (legacy + new tag)
       $this->publishes([
-        __DIR__ . '/../resources/lang' => resource_path('lang/vendor/dropzone-enhanced'),
+        __DIR__ . '/../resources/lang' => $publishedLangPath,
       ], 'dropzone-enhanced-lang');
       $this->publishes([
-        __DIR__ . '/../resources/lang' => resource_path('lang/vendor/dropzone-enhanced'),
+        __DIR__ . '/../resources/lang' => $publishedLangPath,
       ], 'dropzoneenhanced-lang');
 
       // Publish assets
