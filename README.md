@@ -11,7 +11,7 @@ A powerful and customizable Laravel package that enhances Dropzone.js to provide
 - **Seamless Integration**: Add a complete image management UI to your models with a single trait and two Blade components.
 - **Standalone & Dependency-Free**: Works out-of-the-box with no need for external libraries like Glide.
 - **Automatic Thumbnail Generation**: Natively processes and creates thumbnails for fast-loading galleries.
-- **Full Management UI**: Includes drag & drop reordering, main image selection, lightbox preview, and secure deletion.
+- **Full Management UI**: Includes drag & drop reordering, main image selection, lightbox preview with navigation, and secure deletion.
 - **Highly Customizable**: Configure everything from image dimensions and quality to storage disks and route middleware.
 - **Smart URL Generation**: Automatic relative URL generation that works consistently across all environments (local, staging, production) without `.env` configuration hassles.
 - **Handy Helpers**: `src`/`srcset` helpers on models and photos (including raw storage paths) for quick, optimized URLs.
@@ -200,7 +200,7 @@ In your Blade view (e.g., `resources/views/products/edit.blade.php`), add the tw
     {{-- 2. MANAGE EXISTING PHOTOS --}}
     <h3>Manage Existing Photos</h3>
     <p>Drag to reorder, click the star to set the main photo, or use the trash icon to delete.</p>
-    <x-dropzone-enhanced::photos :lightbox="true" :model="$product" />
+    <x-dropzone-enhanced::photos :model="$product" />
 
     <button type="submit">Save Changes</button>
   </form>
@@ -230,6 +230,7 @@ This component provides the file upload interface.
 | `maxFilesize`      | `int`    | Maximum file size in MB.                                                                            | `config('dropzone.images.max_filesize')`       |
 | `reloadOnSuccess`  | `bool`   | If `true`, the page will automatically reload after all uploads are successfully completed.         | `false`                                        |
 | `keepOriginalName` | `bool`   | If `true`, store files using the sanitized original filename (adds numeric suffix on collisions).   | `false`                                        |
+| `locale`           | `string` | Assign uploaded photos to a locale (requires multilingual enabled).                                  | `null`                                         |
 
 Example: keep original filenames in a custom directory
 ```blade
@@ -242,12 +243,13 @@ Example: keep original filenames in a custom directory
 
 ### Gallery: `<x-dropzone-enhanced::photos />`
 
-This component displays and manages existing photos for a model.
+This component displays and manages existing photos for a model. The view action opens a built-in lightbox with prev/next navigation and keyboard support.
 
-| Parameter   | Type    | Description                                                                 | Default |
-| :---------- | :------ | :-------------------------------------------------------------------------- | :------ |
-| `:model`    | `Model` | **Required.** The Eloquent model instance whose photos you want to display. |         |
-| `:lightbox` | `bool`  | Enables or disables the lightbox preview when clicking an image.            | `true`  |
+| Parameter             | Type     | Description                                                                 | Default                                    |
+| :-------------------- | :------- | :-------------------------------------------------------------------------- | :----------------------------------------- |
+| `:model`              | `Model`  | **Required.** The Eloquent model instance whose photos you want to display. |                                            |
+| `thumbnailDimensions` | `string` | Thumbnail size (e.g. `200x200`, `400x300`).                                  | `config('dropzone.images.thumbnails.dimensions')` |
+| `locale`              | `string` | Filter photos by locale (requires multilingual enabled).                     | `null`                                     |
 
 ---
 
@@ -1834,7 +1836,6 @@ The migration adds a nullable `locale` column to the `photos` table, ensuring 10
             <x-dropzone-enhanced::photos
                 :model="$content"
                 locale="es"
-                :lightbox="true"
             />
         @endif
     </x-adminkit::forms.card>
@@ -1856,7 +1857,6 @@ The migration adds a nullable `locale` column to the `photos` table, ensuring 10
             <x-dropzone-enhanced::photos
                 :model="$content"
                 locale="en"
-                :lightbox="true"
             />
         @endif
     </x-adminkit::forms.card>
@@ -1867,15 +1867,54 @@ The migration adds a nullable `locale` column to the `photos` table, ensuring 10
 @endif
 ```
 
+#### Photo Manager (Compact Multilingual UI)
+
+Use the `photo-manager` component to render expandable upload zones plus a unified gallery with locale filters:
+
+```blade
+<x-dropzone-enhanced::photo-manager
+    :model="$content"
+    directory="content"
+    :locales="[
+        ['key' => null, 'label' => __('Generic'), 'color' => 'gray', 'badge' => 'GEN'],
+        ['key' => 'es', 'label' => __('Spanish'), 'color' => 'blue', 'badge' => 'ES'],
+        ['key' => 'en', 'label' => __('English'), 'color' => 'purple', 'badge' => 'EN'],
+    ]"
+    defaultLocale="es"
+    thumbnailDimensions="200x200"
+/>
+```
+
+This component is optional and does not replace the existing `area` and `photos` components. Use it when you want a compact multilingual experience on a single screen.
+
+**Key features:**
+- Expandable upload zones (hover/drag to expand)
+- Unified gallery with locale filter pills
+- Drag-to-reorder within each locale
+- Drag photos between locales to reassign language
+- Empty locale boxes are still valid drop targets
+- Main photo is set manually with the star action (moving photos does not change main)
+
+**Props:**
+- `model` (required): Eloquent model with `HasPhotos` trait
+- `directory` (required): storage directory for uploads
+- `locales` (required): array of locale configs
+  - `key`: locale string or `null` for generic
+  - `label`: display label
+  - `color`: `gray|blue|purple` (used for background tint)
+  - `badge`: short label (e.g. `GEN`, `ES`, `EN`) shown on hover
+- `defaultLocale` (optional): initial active filter (use `all` for combined view)
+- `thumbnailDimensions` (optional): gallery thumb size (default `288x288`)
+
+**Locale move behavior:**
+Dragging a photo into another locale updates its `locale` value. Main photo selection is not changed automatically—use the star button to set it.
+
 #### Backend Methods
 
 ```php
 // Get photos for specific locale
 $spanishPhotos = $content->photosByLocale('es');
 $englishPhotos = $content->photosByLocale('en');
-
-// Get photos with fallback strategy
-$photos = $content->photosByLocaleWithFallback('es');
 
 // Get main photo for locale
 $mainPhoto = $content->mainPhoto('es');
