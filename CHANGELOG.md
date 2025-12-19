@@ -2,6 +2,19 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.3.1 - 2025-12-18
+
+### Fixed
+- 🐛 **Multilingual Photos Bug**: Fixed JavaScript not finding photo containers when using locale parameter
+  - Container IDs are now dynamic (`photos-container-en`, `photos-container-default`)
+  - JavaScript now initializes ALL containers with class `.photos-container`
+  - Lightbox, drag-drop, and photo actions now work correctly with multiple locales
+  - Fixed "Photos container not found" console error
+
+**Impact**: This bug prevented the lightbox, reordering, and photo actions from working when using multilingual images.
+
+**Root cause**: JavaScript was hardcoded to find `getElementById('photos-container')` but actual IDs include locale suffix.
+
 ## 2.3.0 - 2025-12-18
 
 ### Changed - Migration Strategy 🔄

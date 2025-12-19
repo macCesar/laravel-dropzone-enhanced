@@ -190,10 +190,8 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      // Function to initialize the photo actions
-      function initPhotoActions() {
-        const container = document.getElementById('photos-container');
-
+      // Function to initialize the photo actions for a specific container
+      function initPhotoActions(container) {
         if (!container) {
           console.error('Photos container not found');
           return;
@@ -233,7 +231,7 @@
               handle: '.drag-handle',
               onStart: function(evt) {},
               onEnd: function(evt) {
-                updatePhotoOrder();
+                updatePhotoOrder(container);
               }
             });
 
@@ -406,9 +404,8 @@
         }
       }
 
-      // Update photo order
-      function updatePhotoOrder() {
-        const container = document.getElementById('photos-container');
+      // Update photo order (needs container context from event)
+      function updatePhotoOrder(container) {
         const photos = [];
 
         // Collect photo IDs and new order
@@ -457,8 +454,10 @@
       // Wait for SortableJS to load
       function checkSortableLoaded() {
         if (typeof Sortable !== 'undefined') {
-          // Initialize on load
-          initPhotoActions();
+          // Initialize all photos containers (supports multiple locales)
+          document.querySelectorAll('.photos-container').forEach(container => {
+            initPhotoActions(container);
+          });
         } else {
           console.error('SortableJS failed to load');
           setTimeout(checkSortableLoaded, 500);
@@ -468,22 +467,29 @@
       checkSortableLoaded();
 
       // Listen for photo updates
-      document.addEventListener('photos-updated', function() {
-        // Refresh the photos container
+      document.addEventListener('photos-updated', function(event) {
+        // Refresh all photos containers
         fetch(window.location.href)
           .then(response => response.text())
           .then(html => {
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
-            const newPhotosContainer = doc.getElementById('photos-container');
 
-            if (newPhotosContainer) {
-              const currentContainer = document.getElementById('photos-container');
-              currentContainer.outerHTML = newPhotosContainer.outerHTML;
+            // Update all photos containers
+            document.querySelectorAll('.photos-container').forEach(currentContainer => {
+              const containerId = currentContainer.id;
+              const newContainer = doc.getElementById(containerId);
 
-              // Reinitialize actions
-              initPhotoActions();
-            }
+              if (newContainer) {
+                currentContainer.outerHTML = newContainer.outerHTML;
+
+                // Reinitialize actions for the updated container
+                const updatedContainer = document.getElementById(containerId);
+                if (updatedContainer) {
+                  initPhotoActions(updatedContainer);
+                }
+              }
+            });
           })
           .catch(error => {
             console.error('Error refreshing photos:', error);
