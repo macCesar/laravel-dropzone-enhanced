@@ -19,6 +19,7 @@ return [
     'set_as_main' => 'Establecer como foto principal',
     'delete' => 'Eliminar foto',
     'no_photos' => 'Aún no se han subido fotos',
+    'drag_to_reorder' => 'Arrastra para reordenar',
     'confirm_delete' => '¿Estás seguro de que deseas eliminar esta foto? Esta acción no se puede deshacer.'
   ],
   'lightbox' => [
@@ -27,5 +28,14 @@ return [
     'prev' => 'Anterior',
     'next' => 'Siguiente',
     'of' => 'de'
+  ],
+  'photo_manager' => [
+    'generic' => 'Genérico',
+    'manage_photos' => 'Administrar fotos',
+    'filters' => 'Filtros de idioma',
+    'filter_all' => 'Todas',
+    'tip_title' => 'Consejo: mueve fotos entre idiomas',
+    'tip_body' => 'Arrastra las fotos entre grupos de idioma para cambiar su locale.',
+    'no_photos_locale' => 'Aún no hay fotos en este idioma',
   ]
 ];

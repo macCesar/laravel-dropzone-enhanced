@@ -408,6 +408,61 @@ class DropzoneController extends Controller
   }
 
   /**
+   * Update the locale for a photo (drag between locale groups).
+   *
+   * @param \Illuminate\Http\Request $request
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function updateLocale(Request $request)
+  {
+    $validated = $request->validate([
+      'photo_id' => 'required|integer|exists:photos,id',
+      'locale' => 'nullable|string|max:10',
+    ]);
+
+    $photo = Photo::findOrFail($validated['photo_id']);
+    $oldLocale = $photo->locale;
+    $photo->locale = $validated['locale'];
+    $photo->save();
+
+    $this->recalculateSortOrder($photo->photoable_type, $photo->photoable_id, $oldLocale);
+    $this->recalculateSortOrder($photo->photoable_type, $photo->photoable_id, $validated['locale']);
+
+    return response()->json([
+      'success' => true,
+      'photo' => $photo->fresh(),
+      'old_locale' => $oldLocale,
+      'new_locale' => $validated['locale'],
+    ]);
+  }
+
+  /**
+   * Recalculate sort order for photos in a locale group.
+   *
+   * @param string $type
+   * @param int $id
+   * @param string|null $locale
+   * @return void
+   */
+  protected function recalculateSortOrder(string $type, int $id, ?string $locale): void
+  {
+    $photos = Photo::where('photoable_type', $type)
+      ->where('photoable_id', $id)
+      ->when($locale === null, function ($query) {
+        return $query->whereNull('locale');
+      }, function ($query) use ($locale) {
+        return $query->where('locale', $locale);
+      })
+      ->orderBy('sort_order')
+      ->get();
+
+    foreach ($photos as $index => $photo) {
+      $photo->sort_order = $index + 1;
+      $photo->save();
+    }
+  }
+
+  /**
    * Generate a unique filename within a directory (adds numeric suffix if needed).
    *
    * @param string $directory

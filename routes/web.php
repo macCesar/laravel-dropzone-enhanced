@@ -14,4 +14,5 @@ Route::group([
   Route::post('dropzone/photos/{id}/main', [DropzoneController::class, 'setMain'])->name('dropzone.setMain');
   Route::get('dropzone/photos/{id}/is-main', [DropzoneController::class, 'checkIsMain'])->name('dropzone.checkIsMain');
   Route::post('dropzone/photos/reorder', [DropzoneController::class, 'reorder'])->name('dropzone.reorder');
+  Route::post('dropzone/photos/update-locale', [DropzoneController::class, 'updateLocale'])->name('dropzone.updateLocale');
 });

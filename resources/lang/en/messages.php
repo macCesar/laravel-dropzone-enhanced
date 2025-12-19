@@ -19,6 +19,7 @@ return [
     'set_as_main' => 'Set as main photo',
     'delete' => 'Delete photo',
     'no_photos' => 'No photos uploaded yet',
+    'drag_to_reorder' => 'Drag to reorder',
     'confirm_delete' => 'Are you sure you want to delete this photo? This action cannot be undone.'
   ],
   'lightbox' => [
@@ -27,5 +28,14 @@ return [
     'prev' => 'Previous',
     'next' => 'Next',
     'of' => 'of'
+  ],
+  'photo_manager' => [
+    'generic' => 'Generic',
+    'manage_photos' => 'Manage photos',
+    'filters' => 'Photo locale filters',
+    'filter_all' => 'All',
+    'tip_title' => 'Tip: move photos between locales',
+    'tip_body' => 'Drag photos between language groups to change their locale.',
+    'no_photos_locale' => 'No photos in this locale yet',
   ]
 ];
