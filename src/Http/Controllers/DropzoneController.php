@@ -28,13 +28,8 @@ class DropzoneController extends Controller
         'dimensions' => 'nullable|string',
         'keep_original_name' => 'nullable|boolean',
         'file' => 'required|file|image|max:' . config('dropzone.images.max_filesize', 5000),
+        'locale' => 'nullable|string|max:10',
       ];
-
-      // Add locale validation if multilingual support is enabled
-      if (config('dropzone.multilingual.enabled')) {
-        $locales = config('dropzone.multilingual.locales', []);
-        $rules['locale'] = 'nullable|string|in:' . implode(',', $locales);
-      }
 
       $request->validate($rules);
 
@@ -120,15 +115,9 @@ class DropzoneController extends Controller
         'original_filename' => $file->getClientOriginalName(),
       ];
 
-      // Add locale if multilingual support is enabled
-      if (config('dropzone.multilingual.enabled')) {
-        $locale = $request->input('locale');
-
-        if ($locale && in_array($locale, config('dropzone.multilingual.locales', []))) {
-          $photoData['locale'] = $locale;
-        } else {
-          $photoData['locale'] = config('dropzone.multilingual.default_locale', 'en');
-        }
+      // Add locale if multilingual support is enabled and locale is provided
+      if (config('dropzone.multilingual.enabled') && $request->has('locale')) {
+        $photoData['locale'] = $request->input('locale');
       }
 
       // Calculate sort_order within same locale

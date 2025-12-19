@@ -1794,25 +1794,11 @@ Enable multilingual support in `config/dropzone.php`:
 
 ```php
 'multilingual' => [
-    // Enable multilingual photo support
     'enabled' => true,
-
-    // Available locales for photo uploads
-    'locales' => ['en', 'es', 'fr'],
-
-    // Default locale when none is specified
-    'default_locale' => 'en',
-
-    // Fallback strategy when photos for requested locale are not found:
-    // 'default' - Show photos from default_locale
-    // 'null' - Show only photos with exact locale match
-    // 'any' - Show photos from any locale
-    'fallback_strategy' => 'default',
-
-    // Automatically scope photos() by current app locale
-    'auto_scope_by_app_locale' => true,
 ],
 ```
+
+**That's it!** When enabled, you can pass any locale string to components. No need to pre-configure locales or default language.
 
 ### Database Migration
 
@@ -1933,37 +1919,6 @@ $content->deletePhotosForLocale('es');
 
 ### Advanced Features
 
-#### Auto-Scoping by App Locale
-
-When `auto_scope_by_app_locale` is enabled, the `photos()` relationship automatically filters by the current application locale:
-
-```php
-// With auto_scope_by_app_locale = true
-app()->setLocale('es');
-$photos = $content->photos; // Automatically returns only Spanish photos
-
-app()->setLocale('en');
-$photos = $content->photos; // Automatically returns only English photos
-```
-
-#### Fallback Strategies
-
-Control what happens when photos for a locale don't exist:
-
-```php
-// config/dropzone.php
-'fallback_strategy' => 'default', // Shows default_locale photos
-'fallback_strategy' => 'null',    // Shows nothing (strict mode)
-'fallback_strategy' => 'any',     // Shows any available photos
-```
-
-Example usage:
-
-```php
-// If Spanish photos don't exist, falls back to English (default locale)
-$photos = $content->photosByLocaleWithFallback('es');
-```
-
 #### Independent Main Photos
 
 Each locale maintains its own main photo:
@@ -2004,8 +1959,6 @@ Photo::where('photoable_id', $content->id)
    ```php
    'multilingual' => [
        'enabled' => true,
-       'locales' => ['en', 'es'],
-       // ...
    ],
    ```
 
@@ -2053,20 +2006,20 @@ $photos = Photo::where('photoable_type', Content::class)
 
 ### Troubleshooting
 
-**Q: My photos aren't showing after enabling multilingual support.**
-A: When `auto_scope_by_app_locale` is enabled, existing photos with `locale = null` won't show. Either assign them a locale or disable auto-scoping.
-
 **Q: Can I have some models with locale support and others without?**
 A: Yes! Simply pass the `locale` prop only where needed. Models without `locale` prop work exactly as before.
 
 **Q: How do I handle user-uploaded content where locale isn't known?**
-A: Use `locale = null` or disable multilingual support for that model. Photos without locale work independently.
+A: Don't pass the `locale` prop. Photos without locale work independently of multilingual photos.
 
 **Q: Can I change a photo's locale after upload?**
 A: Yes, update the `locale` column directly:
 ```php
 $photo->update(['locale' => 'es']);
 ```
+
+**Q: What languages/locales can I use?**
+A: Any string you want! Pass any locale code (`'es'`, `'en'`, `'fr'`, `'en-US'`, etc.) - there are no restrictions.
 
 ## Development & Contributing
 

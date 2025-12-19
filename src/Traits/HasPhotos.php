@@ -16,16 +16,8 @@ trait HasPhotos
    */
   public function photos(): MorphMany
   {
-    $relation = $this->morphMany(Photo::class, 'photoable')
+    return $this->morphMany(Photo::class, 'photoable')
       ->orderBy('sort_order', 'asc');
-
-    // Auto-scope by app locale if enabled
-    if (config('dropzone.multilingual.enabled') &&
-        config('dropzone.multilingual.auto_scope_by_app_locale')) {
-      $relation->forLocale(app()->getLocale());
-    }
-
-    return $relation;
   }
 
   /**
@@ -42,19 +34,6 @@ trait HasPhotos
       ->get();
   }
 
-  /**
-   * Get photos for a locale with fallback strategy.
-   *
-   * @param string $locale
-   * @return \Illuminate\Support\Collection
-   */
-  public function photosByLocaleWithFallback(string $locale)
-  {
-    return $this->morphMany(Photo::class, 'photoable')
-      ->forLocaleWithFallback($locale)
-      ->orderBy('sort_order', 'asc')
-      ->get();
-  }
 
   /**
    * Get all photos grouped by locale.

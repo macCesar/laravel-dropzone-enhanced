@@ -78,24 +78,11 @@ return [
   | When enabled, photos can be associated with specific locales, allowing
   | different images for each language (useful for images containing text).
   |
+  | When enabled = true, you can pass any locale string to components.
+  | When enabled = false, all photos are stored without locale (null).
+  |
   */
   'multilingual' => [
-    // Enable multilingual photo support
     'enabled' => false,
-
-    // Available locales for photo uploads
-    'locales' => ['en', 'es'],
-
-    // Default locale when none is specified
-    'default_locale' => 'en',
-
-    // Fallback strategy when photos for requested locale are not found:
-    // 'default' - Show photos from default_locale
-    // 'null' - Show only photos with exact locale match
-    // 'any' - Show photos from any locale
-    'fallback_strategy' => 'default',
-
-    // Automatically scope photos() by current app locale
-    'auto_scope_by_app_locale' => true,
   ],
 ];

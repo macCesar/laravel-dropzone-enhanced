@@ -105,40 +105,6 @@ class Photo extends Model
     return $query->where('locale', $locale);
   }
 
-  /**
-   * Scope a query to include photos for a locale with fallback strategy.
-   *
-   * @param \Illuminate\Database\Eloquent\Builder $query
-   * @param string $locale
-   * @return \Illuminate\Database\Eloquent\Builder
-   */
-  public function scopeForLocaleWithFallback($query, $locale)
-  {
-    $strategy = config('dropzone.multilingual.fallback_strategy', 'default');
-    $defaultLocale = config('dropzone.multilingual.default_locale', 'en');
-
-    if ($strategy === 'any') {
-      return $query; // No filtering
-    }
-
-    if ($strategy === 'null') {
-      return $query->forLocale($locale); // Strict
-    }
-
-    // Default strategy: try locale → default → null, ordered by priority
-    return $query->where(function ($q) use ($locale, $defaultLocale) {
-      $q->where('locale', $locale)
-        ->orWhere('locale', $defaultLocale)
-        ->orWhereNull('locale');
-    })->orderByRaw("
-      CASE
-        WHEN locale = ? THEN 1
-        WHEN locale = ? THEN 2
-        WHEN locale IS NULL THEN 3
-        ELSE 4
-      END
-    ", [$locale, $defaultLocale]);
-  }
 
   /**
    * Get all photos for a model grouped by locale.

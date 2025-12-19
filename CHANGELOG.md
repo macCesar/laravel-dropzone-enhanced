@@ -34,29 +34,23 @@ php artisan migrate
 **Configuration:**
 - New `multilingual` section in `config/dropzone.php`:
   - `enabled` - Enable/disable multilingual support (default: false)
-  - `locales` - Available locale codes (default: ['en', 'es'])
-  - `default_locale` - Fallback locale (default: 'en')
-  - `fallback_strategy` - How to handle missing photos ('default', 'null', or 'any')
-  - `auto_scope_by_app_locale` - Auto-filter photos by current app locale (default: true)
+  - When enabled, accepts any locale string - no need to pre-configure languages
 
 **Photo Model:**
 - `locale` field added to `$fillable`
 - `scopeForLocale($locale)` - Filter photos by specific locale
-- `scopeForLocaleWithFallback($locale)` - Filter with fallback strategy
 - `static groupByLocale($photoableType, $photoableId)` - Get photos grouped by locale
 
 **HasPhotos Trait:**
 - `photosByLocale(?string $locale)` - Get photos for specific locale
-- `photosByLocaleWithFallback(string $locale)` - Get photos with fallback
 - `photosGroupedByLocale()` - Get all photos grouped by locale
 - `hasPhotosForLocale(?string $locale)` - Check if photos exist for locale
 - `deletePhotosForLocale(?string $locale)` - Delete all photos for locale
-- `photos()` - Now auto-scopes by app locale when `auto_scope_by_app_locale` is enabled
 - `mainPhoto(?string $locale)` - Now accepts optional locale parameter
-- `setMainPhoto($photoId)` - Now only affects photos in same locale
+- `setMainPhoto($photoId)` - Only affects photos in same locale
 
 **Controller:**
-- `DropzoneController::upload()` - Now accepts and validates `locale` parameter
+- `DropzoneController::upload()` - Accepts optional `locale` parameter (any string, max 10 chars)
 - Sort order calculated per locale (each locale has independent ordering)
 - First photo uploaded for a locale automatically becomes main for that locale
 - `DropzoneController::setMain()` - Only affects photos in same locale
