@@ -1779,6 +1779,7 @@ php artisan migrate
 ```
 
 **⚠️ Important:** After running `composer update`, you **MUST** run `php artisan migrate` to add the `locale` column to the `photos` table. The migration is backward-compatible and won't affect existing photos.
+**Note:** In v2.2.1 the `photos` table creation migration was renamed and guarded to ensure fresh installs run in the correct order while existing installs won't recreate the table. Just run `php artisan migrate` as usual.
 
 ### Overview
 

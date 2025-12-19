@@ -2,6 +2,16 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.2.1 - 2025-12-18
+
+### Fixed
+- Guarded the `photos` table creation migration to skip when the table already exists (safe for existing installs).
+- Guarded the locale migration to only add/remove the column and index when applicable.
+- Renamed the `create_photos_table` migration to include a timestamp so fresh installs run it before locale changes.
+
+### Upgrade Notes
+- After updating, run `php artisan migrate` as usual. Existing installations will record the renamed migration without attempting to recreate the table.
+
 ## 2.2.0 - 2025-12-18
 
 ### 🌍 Multilingual Photo Support

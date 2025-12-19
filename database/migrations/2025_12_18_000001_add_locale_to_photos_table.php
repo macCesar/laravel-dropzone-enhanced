@@ -11,13 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('photos', function (Blueprint $table) {
-            // Add locale column (nullable for backwards compatibility)
-            $table->string('locale', 5)->nullable()->after('is_main');
+        if (Schema::hasTable('photos') && !Schema::hasColumn('photos', 'locale')) {
+            Schema::table('photos', function (Blueprint $table) {
+                // Add locale column (nullable for backwards compatibility)
+                $table->string('locale', 5)->nullable()->after('is_main');
 
-            // Add composite index for efficient querying by model + locale
-            $table->index(['photoable_type', 'photoable_id', 'locale'], 'photos_locale_index');
-        });
+                // Add composite index for efficient querying by model + locale
+                $table->index(['photoable_type', 'photoable_id', 'locale'], 'photos_locale_index');
+            });
+        }
     }
 
     /**
@@ -25,9 +27,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('photos', function (Blueprint $table) {
-            $table->dropIndex('photos_locale_index');
-            $table->dropColumn('locale');
-        });
+        if (Schema::hasTable('photos') && Schema::hasColumn('photos', 'locale')) {
+            Schema::table('photos', function (Blueprint $table) {
+                $table->dropIndex('photos_locale_index');
+                $table->dropColumn('locale');
+            });
+        }
     }
 };
