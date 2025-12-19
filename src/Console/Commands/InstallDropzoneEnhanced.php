@@ -28,11 +28,6 @@ class InstallDropzoneEnhanced extends Command
       '--tag' => 'dropzoneenhanced-config',
     ]);
 
-    $this->info('Publishing migrations...');
-    $this->callSilent('vendor:publish', [
-      '--tag' => 'dropzoneenhanced-migrations',
-    ]);
-
     $this->info('Publishing assets...');
     $this->callSilent('vendor:publish', [
       '--tag' => 'dropzoneenhanced-assets',

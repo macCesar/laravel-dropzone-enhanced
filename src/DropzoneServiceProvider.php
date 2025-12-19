@@ -41,16 +41,7 @@ class DropzoneServiceProvider extends ServiceProvider
     // Load migrations automatically
     $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
 
-    // Also publish migrations for customization if needed
     if ($this->app->runningInConsole()) {
-      // Migrations (legacy + new tag)
-      $this->publishes([
-        __DIR__ . '/../database/migrations' => database_path('migrations'),
-      ], 'dropzone-enhanced-migrations');
-      $this->publishes([
-        __DIR__ . '/../database/migrations' => database_path('migrations'),
-      ], 'dropzoneenhanced-migrations');
-
       // Publish configuration
       // Config (legacy + new tag)
       $this->publishes([

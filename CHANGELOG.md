@@ -2,6 +2,47 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.3.0 - 2025-12-18
+
+### Changed - Migration Strategy 🔄
+
+**BREAKING CHANGE:** Laravel Dropzone Enhanced now relies exclusively on automatic migration loading via `loadMigrationsFrom()`.
+
+- ❌ **REMOVED**: Migration publishing from `dropzoneenhanced:install` command
+- ❌ **REMOVED**: `dropzone-enhanced-migrations` and `dropzoneenhanced-migrations` publish tags from ServiceProvider
+- ✅ **IMPROVED**: Migrations now load automatically from package (always up-to-date)
+
+**What this means for you:**
+
+**For NEW installations:**
+- No changes needed - migrations work automatically with `php artisan migrate`
+
+**For EXISTING installations:**
+- If you have published Dropzone Enhanced migrations in `database/migrations/`, they are now **redundant**
+- You can safely delete published `create_photos_table.php` and locale migrations (Laravel will use package migrations instead)
+- Future package updates will automatically include migration updates (no manual republishing needed)
+
+**Benefits:**
+- ✅ Migrations always match your installed package version
+- ✅ No need to republish migrations when updating the package
+- ✅ Cleaner project structure (fewer files in your migrations folder)
+- ✅ Consistent with AdminKit behavior
+
+**Technical details:**
+- Package uses `loadMigrationsFrom()` in DropzoneServiceProvider (line 42)
+- Laravel automatically detects and runs package migrations
+- Package migrations are namespaced and won't conflict with your app migrations
+
+**Migration cleanup (optional):**
+```bash
+# List Dropzone Enhanced migrations in your project
+ls database/migrations/*_create_photos_table.php
+ls database/migrations/*_add_locale_to_photos_table.php
+ls database/migrations/*_add_user_id_to_photos_table.php
+
+# Safe to delete - package will provide them automatically
+```
+
 ## 2.2.1 - 2025-12-18
 
 ### Fixed
