@@ -2,6 +2,18 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.4.0 - 2025-12-19
+
+### Added
+- **Photo Manager component** for compact multilingual workflows (expandable dropzones + unified gallery).
+- **Drag between locales**: move photos across locale grids to reassign language.
+- **Empty locale drop targets**: locale sections stay valid drop zones even with zero photos.
+- **Lightbox navigation**: prev/next buttons, keyboard arrows, and image counter in lightbox.
+- **Locale update endpoint**: new `dropzone.updateLocale` route for locale reassignment.
+
+### Changed
+- Updated translations and README to document the new photo manager and lightbox behavior.
+
 ## 2.3.1 - 2025-12-18
 
 ### Fixed
