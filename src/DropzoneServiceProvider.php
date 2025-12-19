@@ -37,11 +37,15 @@ class DropzoneServiceProvider extends ServiceProvider
 
     // Load translations (package defaults + published overrides)
     $this->loadTranslationsFrom(__DIR__ . '/../resources/lang', 'dropzone-enhanced');
-    $publishedLangPath = function_exists('lang_path')
-      ? lang_path('vendor/dropzone-enhanced')
-      : resource_path('lang/vendor/dropzone-enhanced');
+    $publishedLangPath = resource_path('lang/vendor/dropzone-enhanced');
     if (is_dir($publishedLangPath)) {
       $this->loadTranslationsFrom($publishedLangPath, 'dropzone-enhanced');
+    }
+    $legacyLangPath = function_exists('lang_path')
+      ? lang_path('vendor/dropzone-enhanced')
+      : null;
+    if ($legacyLangPath && $legacyLangPath !== $publishedLangPath && is_dir($legacyLangPath)) {
+      $this->loadTranslationsFrom($legacyLangPath, 'dropzone-enhanced');
     }
 
     // Load migrations automatically

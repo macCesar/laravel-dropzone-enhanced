@@ -762,7 +762,7 @@ php artisan vendor:publish --tag=dropzoneenhanced-config
   - Views: `dropzoneenhanced-views` (alias: `dropzone-enhanced-views`)
   - Lang: `dropzoneenhanced-lang` (alias: `dropzone-enhanced-lang`)
   - Assets: `dropzoneenhanced-assets` (alias: `dropzone-enhanced-assets`)
-Translations publish to `lang/vendor/dropzone-enhanced` so you can override package strings without clobbering app translations.
+Translations publish to `resources/lang/vendor/dropzone-enhanced` so you can override package strings without clobbering app translations.
 You can now edit `config/dropzone.php` to change default image sizes, storage disks, route middleware, and more.
 
 ### Security & Authorization
