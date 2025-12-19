@@ -21,14 +21,22 @@ class DropzoneController extends Controller
   public function upload(Request $request)
   {
     try {
-      $request->validate([
+      $rules = [
         'directory' => 'required|string',
         'model_id' => 'required|integer',
         'model_type' => 'required|string',
         'dimensions' => 'nullable|string',
         'keep_original_name' => 'nullable|boolean',
         'file' => 'required|file|image|max:' . config('dropzone.images.max_filesize', 5000),
-      ]);
+      ];
+
+      // Add locale validation if multilingual support is enabled
+      if (config('dropzone.multilingual.enabled')) {
+        $locales = config('dropzone.multilingual.locales', []);
+        $rules['locale'] = 'nullable|string|in:' . implode(',', $locales);
+      }
+
+      $request->validate($rules);
 
       // Get upload parameters
       $file = $request->file('file');
@@ -110,13 +118,32 @@ class DropzoneController extends Controller
         'photoable_type' => $modelType,
         'mime_type' => $file->getMimeType(),
         'original_filename' => $file->getClientOriginalName(),
-        'sort_order' => Photo::where('photoable_id', $modelId)
-          ->where('photoable_type', $modelType)
-          ->count() + 1,
-        'is_main' => Photo::where('photoable_id', $modelId)
-          ->where('photoable_type', $modelType)
-          ->count() == 0, // First photo is main by default
       ];
+
+      // Add locale if multilingual support is enabled
+      if (config('dropzone.multilingual.enabled')) {
+        $locale = $request->input('locale');
+
+        if ($locale && in_array($locale, config('dropzone.multilingual.locales', []))) {
+          $photoData['locale'] = $locale;
+        } else {
+          $photoData['locale'] = config('dropzone.multilingual.default_locale', 'en');
+        }
+      }
+
+      // Calculate sort_order within same locale
+      $sortOrderQuery = Photo::where('photoable_id', $modelId)
+        ->where('photoable_type', $modelType);
+
+      if (config('dropzone.multilingual.enabled') && isset($photoData['locale'])) {
+        $sortOrderQuery->where('locale', $photoData['locale']);
+      }
+
+      $photoData['sort_order'] = $sortOrderQuery->count() + 1;
+
+      // First photo in locale is main
+      $isMainQuery = clone $sortOrderQuery;
+      $photoData['is_main'] = $isMainQuery->count() == 0;
 
       // Only add user_id if the column exists and auth is available (full compatibility)
       if (Schema::hasColumn('photos', 'user_id')) {
@@ -302,12 +329,17 @@ class DropzoneController extends Controller
     if ($isMain) {
       $photo->update(['is_main' => false]);
 
-      // Fallback: set first photo as main if exists
-      $firstPhoto = Photo::where('photoable_id', $photo->photoable_id)
+      // Fallback: set first photo as main if exists (same locale only)
+      $firstPhotoQuery = Photo::where('photoable_id', $photo->photoable_id)
         ->where('photoable_type', $photo->photoable_type)
-        ->where('id', '!=', $photo->id)
-        ->orderBy('sort_order', 'asc')
-        ->first();
+        ->where('id', '!=', $photo->id);
+
+      // Filter by locale if multilingual is enabled
+      if (config('dropzone.multilingual.enabled')) {
+        $firstPhotoQuery->where('locale', $photo->locale);
+      }
+
+      $firstPhoto = $firstPhotoQuery->orderBy('sort_order', 'asc')->first();
 
       if ($firstPhoto) {
         $firstPhoto->update(['is_main' => true]);
@@ -320,10 +352,16 @@ class DropzoneController extends Controller
       ]);
     }
 
-    // Unset any previous main photo
-    Photo::where('photoable_id', $photo->photoable_id)
-      ->where('photoable_type', $photo->photoable_type)
-      ->update(['is_main' => false]);
+    // Unset any previous main photo (same locale only)
+    $unsetQuery = Photo::where('photoable_id', $photo->photoable_id)
+      ->where('photoable_type', $photo->photoable_type);
+
+    // Filter by locale if multilingual is enabled
+    if (config('dropzone.multilingual.enabled')) {
+      $unsetQuery->where('locale', $photo->locale);
+    }
+
+    $unsetQuery->update(['is_main' => false]);
 
     // Set this photo as main
     $photo->update(['is_main' => true]);

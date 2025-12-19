@@ -1756,6 +1756,318 @@ $relativeUrl = $photo->getUrl(); // /storage/images/photo.jpg
 $absoluteUrl = url($photo->getUrl()); // http://yourdomain.com/storage/images/photo.jpg
 ```
 
+## Multilingual Photo Support
+
+**NEW in v2.2.0** - Manage locale-specific photos for multilingual applications. Perfect for sites where images contain text in different languages.
+
+### 🚀 Quick Start (Existing Projects)
+
+If you're upgrading from a previous version:
+
+```bash
+# 1. Update the package
+composer update maccesar/laravel-dropzone-enhanced
+
+# 2. Run the migration (REQUIRED - adds locale column)
+php artisan migrate
+
+# 3. Enable multilingual support in config/dropzone.php
+#    Set 'multilingual.enabled' => true
+
+# 4. Start using locale prop in your views
+#    <x-dropzone-enhanced::area :model="$model" locale="es" />
+```
+
+**⚠️ Important:** After running `composer update`, you **MUST** run `php artisan migrate` to add the `locale` column to the `photos` table. The migration is backward-compatible and won't affect existing photos.
+
+### Overview
+
+Multilingual support allows you to upload and manage different images for each language in your application. Each locale has:
+- Independent photo galleries
+- Its own main photo
+- Separate ordering/sorting
+- Independent photo management
+
+### Configuration
+
+Enable multilingual support in `config/dropzone.php`:
+
+```php
+'multilingual' => [
+    // Enable multilingual photo support
+    'enabled' => true,
+
+    // Available locales for photo uploads
+    'locales' => ['en', 'es', 'fr'],
+
+    // Default locale when none is specified
+    'default_locale' => 'en',
+
+    // Fallback strategy when photos for requested locale are not found:
+    // 'default' - Show photos from default_locale
+    // 'null' - Show only photos with exact locale match
+    // 'any' - Show photos from any locale
+    'fallback_strategy' => 'default',
+
+    // Automatically scope photos() by current app locale
+    'auto_scope_by_app_locale' => true,
+],
+```
+
+### Database Migration
+
+Run the migration to add the `locale` column:
+
+```bash
+php artisan migrate
+```
+
+The migration adds a nullable `locale` column to the `photos` table, ensuring 100% backward compatibility with existing photos.
+
+### Basic Usage
+
+#### Blade Components with Locale
+
+```blade
+@if($isMultilingual && $content->exists)
+    {{-- Spanish Images --}}
+    <x-adminkit::forms.card
+        title="{{ __('Spanish Images') }}"
+        icon="fas fa-images">
+
+        <x-dropzone-enhanced::area
+            :model="$content"
+            directory="content"
+            locale="es"
+            :maxFiles="10"
+            dimensions="1200x800"
+        />
+
+        @if($content->hasPhotosForLocale('es'))
+            <x-dropzone-enhanced::photos
+                :model="$content"
+                locale="es"
+                :lightbox="true"
+            />
+        @endif
+    </x-adminkit::forms.card>
+
+    {{-- English Images --}}
+    <x-adminkit::forms.card
+        title="{{ __('English Images') }}"
+        icon="fas fa-globe">
+
+        <x-dropzone-enhanced::area
+            :model="$content"
+            directory="content"
+            locale="en"
+            :maxFiles="10"
+            dimensions="1200x800"
+        />
+
+        @if($content->hasPhotosForLocale('en'))
+            <x-dropzone-enhanced::photos
+                :model="$content"
+                locale="en"
+                :lightbox="true"
+            />
+        @endif
+    </x-adminkit::forms.card>
+@else
+    {{-- Non-multilingual mode (backward compatible) --}}
+    <x-dropzone-enhanced::area :model="$content" directory="content" />
+    <x-dropzone-enhanced::photos :model="$content" />
+@endif
+```
+
+#### Backend Methods
+
+```php
+// Get photos for specific locale
+$spanishPhotos = $content->photosByLocale('es');
+$englishPhotos = $content->photosByLocale('en');
+
+// Get photos with fallback strategy
+$photos = $content->photosByLocaleWithFallback('es');
+
+// Get main photo for locale
+$mainPhoto = $content->mainPhoto('es');
+$mainPhotoUrl = $mainPhoto?->getUrl('800x600');
+
+// Check if locale has photos
+if ($content->hasPhotosForLocale('en')) {
+    // Has English photos
+}
+
+// Get all photos grouped by locale
+$grouped = $content->photosGroupedByLocale();
+// Returns: ['en' => Collection, 'es' => Collection, 'fr' => Collection]
+
+// Delete all photos for specific locale
+$content->deletePhotosForLocale('es');
+```
+
+#### Frontend Display
+
+```blade
+{{-- Display main photo for current app locale --}}
+<img src="{{ $content->mainPhoto()->getUrl('800x600') }}" alt="{{ $content->title }}">
+
+{{-- Display main photo for specific locale --}}
+<img src="{{ $content->mainPhoto('es')->getUrl('800x600') }}" alt="{{ $content->title }}">
+
+{{-- Loop through photos for specific locale --}}
+@foreach($content->photosByLocale('en') as $photo)
+    <img src="{{ $photo->getUrl('400x300') }}" alt="{{ $photo->original_filename }}">
+@endforeach
+
+{{-- Gallery with locale-aware photos --}}
+<div class="gallery">
+    @foreach($content->photosByLocale(app()->getLocale()) as $photo)
+        <a href="{{ $photo->getUrl() }}" data-lightbox="gallery">
+            <img src="{{ $photo->getThumbnailUrl('300x300') }}">
+        </a>
+    @endforeach
+</div>
+```
+
+### Advanced Features
+
+#### Auto-Scoping by App Locale
+
+When `auto_scope_by_app_locale` is enabled, the `photos()` relationship automatically filters by the current application locale:
+
+```php
+// With auto_scope_by_app_locale = true
+app()->setLocale('es');
+$photos = $content->photos; // Automatically returns only Spanish photos
+
+app()->setLocale('en');
+$photos = $content->photos; // Automatically returns only English photos
+```
+
+#### Fallback Strategies
+
+Control what happens when photos for a locale don't exist:
+
+```php
+// config/dropzone.php
+'fallback_strategy' => 'default', // Shows default_locale photos
+'fallback_strategy' => 'null',    // Shows nothing (strict mode)
+'fallback_strategy' => 'any',     // Shows any available photos
+```
+
+Example usage:
+
+```php
+// If Spanish photos don't exist, falls back to English (default locale)
+$photos = $content->photosByLocaleWithFallback('es');
+```
+
+#### Independent Main Photos
+
+Each locale maintains its own main photo:
+
+```php
+// Set main photo for Spanish
+$content->setMainPhoto($spanishPhotoId); // Only affects Spanish photos
+
+// Set main photo for English
+$content->setMainPhoto($englishPhotoId); // Only affects English photos
+
+// Get main photo per locale
+$spanishMain = $content->mainPhoto('es');
+$englishMain = $content->mainPhoto('en');
+```
+
+#### Independent Ordering
+
+Photos are sorted independently within each locale:
+
+```php
+// Reordering Spanish photos doesn't affect English photos
+Photo::where('photoable_id', $content->id)
+    ->where('locale', 'es')
+    ->update(['sort_order' => $newOrder]);
+```
+
+### Migration Guide
+
+#### For Existing Projects
+
+1. **Run Migration** - Adds nullable `locale` column (no data changes):
+   ```bash
+   php artisan migrate
+   ```
+
+2. **Enable Configuration** - Update `config/dropzone.php`:
+   ```php
+   'multilingual' => [
+       'enabled' => true,
+       'locales' => ['en', 'es'],
+       // ...
+   ],
+   ```
+
+3. **Update Views** - Add `locale` prop to components where needed:
+   ```blade
+   <x-dropzone-enhanced::area :model="$model" locale="es" />
+   ```
+
+4. **Gradual Adoption** - Enable per module/model as needed. Existing photos continue working without locale.
+
+#### Optional: Assign Locale to Existing Photos
+
+```php
+// Assign default locale to all existing photos
+DB::table('photos')->whereNull('locale')->update(['locale' => 'en']);
+
+// Or assign based on parent model's locale
+$contents = Content::all();
+foreach ($contents as $content) {
+    $content->photos()->whereNull('locale')
+        ->update(['locale' => $content->locale ?? 'en']);
+}
+```
+
+### Backward Compatibility
+
+- ✅ Existing photos work unchanged (`locale = null`)
+- ✅ Disabled by default (`multilingual.enabled = false`)
+- ✅ No breaking changes to existing API
+- ✅ All existing code continues working
+- ✅ Opt-in per component with `locale` prop
+
+### Performance Considerations
+
+The package includes a composite index `(photoable_type, photoable_id, locale)` for efficient queries:
+
+```php
+// Optimized query using index
+$photos = Photo::where('photoable_type', Content::class)
+    ->where('photoable_id', $contentId)
+    ->where('locale', 'es')
+    ->orderBy('sort_order')
+    ->get();
+```
+
+### Troubleshooting
+
+**Q: My photos aren't showing after enabling multilingual support.**
+A: When `auto_scope_by_app_locale` is enabled, existing photos with `locale = null` won't show. Either assign them a locale or disable auto-scoping.
+
+**Q: Can I have some models with locale support and others without?**
+A: Yes! Simply pass the `locale` prop only where needed. Models without `locale` prop work exactly as before.
+
+**Q: How do I handle user-uploaded content where locale isn't known?**
+A: Use `locale = null` or disable multilingual support for that model. Photos without locale work independently.
+
+**Q: Can I change a photo's locale after upload?**
+A: Yes, update the `locale` column directly:
+```php
+$photo->update(['locale' => 'es']);
+```
+
 ## Development & Contributing
 
 ### Asset Management

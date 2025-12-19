@@ -7,10 +7,16 @@
   'maxFiles' => config('dropzone.images.max_files', 10),
   'maxFilesize' => config('dropzone.images.max_filesize', 10000) / 1000,
   'keepOriginalName' => false,
+  'locale' => null,
 ])
 
-<div class="dropzone-container" data-dimensions="{{ $dimensions }}" data-directory="{{ $directory }}" data-model-id="{{ $model->id }}" data-model-type="{{ get_class($model) }}" data-pre-resize="{{ $preResize ? 'true' : 'false' }}" data-keep-original-name="{{ $keepOriginalName ? 'true' : 'false' }}" id="dropzone-container">
-  <div class="dropzone" id="dropzone-upload">
+@php
+  $containerId = 'dropzone-container-' . ($locale ?? 'default');
+  $uploadId = 'dropzone-upload-' . ($locale ?? 'default');
+@endphp
+
+<div class="dropzone-container" data-dimensions="{{ $dimensions }}" data-directory="{{ $directory }}" data-model-id="{{ $model->id }}" data-model-type="{{ get_class($model) }}" data-pre-resize="{{ $preResize ? 'true' : 'false' }}" data-keep-original-name="{{ $keepOriginalName ? 'true' : 'false' }}" data-locale="{{ $locale ?? '' }}" id="{{ $containerId }}">
+  <div class="dropzone" id="{{ $uploadId }}">
     <div class="dz-message">
       {{ __('dropzone-enhanced::messages.dropzone.message') }}
       <div class="dz-instructions">
@@ -58,9 +64,9 @@
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       // Direct initialization of Dropzone instead of using discover
-      const dropzoneElement = document.getElementById('dropzone-upload');
+      const dropzoneElement = document.getElementById('{{ $uploadId }}');
       if (dropzoneElement) {
-        const myDropzone = new Dropzone('#dropzone-upload', {
+        const myDropzone = new Dropzone('#{{ $uploadId }}', {
           url: "{{ route('dropzone.upload') }}",
           paramName: "file",
           maxFiles: {{ $maxFiles }},
@@ -82,7 +88,7 @@
           createImageThumbnails: true,
           init: function() {
             const dropzone = this;
-            const container = document.getElementById('dropzone-container');
+            const container = document.getElementById('{{ $containerId }}');
 
             // Add additional data
             this.on("sending", function(file, xhr, formData) {
@@ -93,6 +99,12 @@
               // Ensure dimensions always has a value
               formData.append("dimensions", container.dataset.dimensions || "1920x1080");
               formData.append("keep_original_name", container.dataset.keepOriginalName === "true" ? "1" : "0");
+
+              // Add locale if present
+              const locale = container.dataset.locale;
+              if (locale && locale !== '') {
+                formData.append("locale", locale);
+              }
             });
 
             // Handle success

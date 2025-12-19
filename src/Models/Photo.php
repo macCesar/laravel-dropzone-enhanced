@@ -32,6 +32,7 @@ class Photo extends Model
     'height',
     'sort_order',
     'is_main',
+    'locale',
   ];
 
   /**
@@ -49,7 +50,7 @@ class Photo extends Model
 
   /**
    * Propiedades para la documentación del IDE
-   * 
+   *
    * @property int $id
    * @property string $photoable_type
    * @property int $photoable_id
@@ -65,6 +66,7 @@ class Photo extends Model
    * @property int $height
    * @property int $sort_order
    * @property bool $is_main
+   * @property string|null $locale
    * @property \Carbon\Carbon $created_at
    * @property \Carbon\Carbon $updated_at
    */
@@ -85,6 +87,74 @@ class Photo extends Model
   public function user()
   {
     return $this->belongsTo(config('auth.providers.users.model'));
+  }
+
+  /**
+   * Scope a query to only include photos for a specific locale.
+   *
+   * @param \Illuminate\Database\Eloquent\Builder $query
+   * @param string|null $locale
+   * @return \Illuminate\Database\Eloquent\Builder
+   */
+  public function scopeForLocale($query, $locale = null)
+  {
+    if ($locale === null) {
+      return $query->whereNull('locale');
+    }
+
+    return $query->where('locale', $locale);
+  }
+
+  /**
+   * Scope a query to include photos for a locale with fallback strategy.
+   *
+   * @param \Illuminate\Database\Eloquent\Builder $query
+   * @param string $locale
+   * @return \Illuminate\Database\Eloquent\Builder
+   */
+  public function scopeForLocaleWithFallback($query, $locale)
+  {
+    $strategy = config('dropzone.multilingual.fallback_strategy', 'default');
+    $defaultLocale = config('dropzone.multilingual.default_locale', 'en');
+
+    if ($strategy === 'any') {
+      return $query; // No filtering
+    }
+
+    if ($strategy === 'null') {
+      return $query->forLocale($locale); // Strict
+    }
+
+    // Default strategy: try locale → default → null, ordered by priority
+    return $query->where(function ($q) use ($locale, $defaultLocale) {
+      $q->where('locale', $locale)
+        ->orWhere('locale', $defaultLocale)
+        ->orWhereNull('locale');
+    })->orderByRaw("
+      CASE
+        WHEN locale = ? THEN 1
+        WHEN locale = ? THEN 2
+        WHEN locale IS NULL THEN 3
+        ELSE 4
+      END
+    ", [$locale, $defaultLocale]);
+  }
+
+  /**
+   * Get all photos for a model grouped by locale.
+   *
+   * @param string $photoableType
+   * @param int $photoableId
+   * @return \Illuminate\Support\Collection
+   */
+  public static function groupByLocale($photoableType, $photoableId)
+  {
+    return static::where('photoable_type', $photoableType)
+      ->where('photoable_id', $photoableId)
+      ->orderBy('locale')
+      ->orderBy('sort_order')
+      ->get()
+      ->groupBy('locale');
   }
 
   /**

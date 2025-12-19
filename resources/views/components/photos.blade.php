@@ -1,9 +1,20 @@
-@props(['model', 'thumbnailDimensions' => '288x288'])
+@props(['model', 'thumbnailDimensions' => '288x288', 'locale' => null])
 
-<div class="photos-container" data-model-id="{{ $model->id }}" data-model-type="{{ get_class($model) }}" id="photos-container">
-  @if ($model->photos->count() > 0)
+@php
+  // Filter photos by locale if specified
+  if (config('dropzone.multilingual.enabled') && $locale !== null) {
+    $photos = $model->photosByLocale($locale);
+  } else {
+    $photos = $model->photos;
+  }
+
+  $containerId = 'photos-container-' . ($locale ?? 'default');
+@endphp
+
+<div class="photos-container" data-model-id="{{ $model->id }}" data-model-type="{{ get_class($model) }}" data-locale="{{ $locale ?? '' }}" id="{{ $containerId }}">
+  @if ($photos->count() > 0)
     <div class="photos-grid">
-      @foreach ($model->photos as $photo)
+      @foreach ($photos as $photo)
         <div class="photo-item {{ $photo->is_main ? 'is-main' : '' }}" data-photo-id="{{ $photo->id }}" data-sort-order="{{ $photo->sort_order }}">
           <div class="photo-actions">
             <button class="photo-action photo-action-view" data-photo-id="{{ $photo->id }}" data-photo-url="{{ $photo->getUrl() }}" title="{{ __('dropzone-enhanced::messages.photos.view') }}" type="button">

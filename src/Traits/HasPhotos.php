@@ -16,18 +16,96 @@ trait HasPhotos
    */
   public function photos(): MorphMany
   {
-    return $this->morphMany(Photo::class, 'photoable')
+    $relation = $this->morphMany(Photo::class, 'photoable')
       ->orderBy('sort_order', 'asc');
+
+    // Auto-scope by app locale if enabled
+    if (config('dropzone.multilingual.enabled') &&
+        config('dropzone.multilingual.auto_scope_by_app_locale')) {
+      $relation->forLocale(app()->getLocale());
+    }
+
+    return $relation;
+  }
+
+  /**
+   * Get photos for a specific locale.
+   *
+   * @param string|null $locale
+   * @return \Illuminate\Support\Collection
+   */
+  public function photosByLocale(?string $locale = null)
+  {
+    return $this->morphMany(Photo::class, 'photoable')
+      ->forLocale($locale)
+      ->orderBy('sort_order', 'asc')
+      ->get();
+  }
+
+  /**
+   * Get photos for a locale with fallback strategy.
+   *
+   * @param string $locale
+   * @return \Illuminate\Support\Collection
+   */
+  public function photosByLocaleWithFallback(string $locale)
+  {
+    return $this->morphMany(Photo::class, 'photoable')
+      ->forLocaleWithFallback($locale)
+      ->orderBy('sort_order', 'asc')
+      ->get();
+  }
+
+  /**
+   * Get all photos grouped by locale.
+   *
+   * @return \Illuminate\Support\Collection
+   */
+  public function photosGroupedByLocale()
+  {
+    return Photo::groupByLocale(get_class($this), $this->id);
+  }
+
+  /**
+   * Check if the model has photos for a specific locale.
+   *
+   * @param string|null $locale
+   * @return bool
+   */
+  public function hasPhotosForLocale(?string $locale = null): bool
+  {
+    return $this->photosByLocale($locale)->count() > 0;
+  }
+
+  /**
+   * Delete all photos for a specific locale.
+   *
+   * @param string|null $locale
+   * @return void
+   */
+  public function deletePhotosForLocale(?string $locale): void
+  {
+    $photos = $this->photosByLocale($locale);
+
+    foreach ($photos as $photo) {
+      $photo->deletePhoto();
+    }
   }
 
   /**
    * Get the main photo for the model.
    *
+   * @param string|null $locale
    * @return \MacCesar\LaravelDropzoneEnhanced\Models\Photo|null
    */
-  public function mainPhoto()
+  public function mainPhoto(?string $locale = null)
   {
-    return $this->photos->where('is_main', true)->first() ?? $this->photos->first();
+    if (!config('dropzone.multilingual.enabled') || $locale === null) {
+      return $this->photos->where('is_main', true)->first() ?? $this->photos->first();
+    }
+
+    $photos = $this->photosByLocale($locale);
+    return $photos->where('is_main', true)->first() ?? $photos->first();
   }
 
   /**
@@ -59,10 +137,18 @@ trait HasPhotos
    */
   public function setMainPhoto(int $photoId): bool
   {
-    // First, unset any existing main photo
-    $this->photos()->update(['is_main' => false]);
+    $photo = $this->photos()->where('id', $photoId)->first();
 
-    // Then, set the new main photo
+    if (!$photo) {
+      return false;
+    }
+
+    // Unset main for same locale only
+    $this->photos()
+      ->where('locale', $photo->locale)
+      ->update(['is_main' => false]);
+
+    // Set the new main photo
     return (bool) $this->photos()->where('id', $photoId)->update(['is_main' => true]);
   }
 
