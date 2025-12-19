@@ -217,7 +217,7 @@
         container.querySelectorAll('.photo-action-view').forEach(button => {
           button.addEventListener('click', function() {
             const photoUrl = button.dataset.photoUrl;
-            showLightbox(photoUrl);
+            showLightbox(container, photoUrl);
           });
         });
 
@@ -245,20 +245,29 @@
         }
       }
 
-      // Function to show a simple lightbox
-      function showLightbox(imageUrl) {
-        // Create lightbox elements
+      function showLightbox(container, imageUrl) {
+        const existing = document.querySelector('.photo-lightbox');
+        if (existing) {
+          existing.remove();
+        }
+
+        const buttons = Array.from(container.querySelectorAll('.photo-action-view'));
+        const urls = buttons.map(button => button.dataset.photoUrl);
+        let currentIndex = Math.max(0, urls.indexOf(imageUrl));
+
         const lightbox = document.createElement('div');
         lightbox.className = 'photo-lightbox';
         lightbox.innerHTML = `
           <div class="photo-lightbox-backdrop"></div>
           <div class="photo-lightbox-content">
-            <img src="${imageUrl}" alt="Lightbox image" />
-            <button class="photo-lightbox-close">&times;</button>
+            <button class="photo-lightbox-nav photo-lightbox-prev" type="button">{{ __('dropzone-enhanced::messages.lightbox.prev') }}</button>
+            <img src="" alt="{{ __('dropzone-enhanced::messages.lightbox.image') }}" />
+            <button class="photo-lightbox-nav photo-lightbox-next" type="button">{{ __('dropzone-enhanced::messages.lightbox.next') }}</button>
+            <div class="photo-lightbox-counter"></div>
+            <button class="photo-lightbox-close" type="button">&times;</button>
           </div>
         `;
 
-        // Add styles
         const style = document.createElement('style');
         style.textContent = `
           .photo-lightbox {
@@ -285,11 +294,15 @@
             max-width: 90%;
             max-height: 90%;
             position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
           }
           .photo-lightbox-content img {
             display: block;
-            max-width: 100%;
-            max-height: 90vh;
+            max-width: 80vw;
+            max-height: 80vh;
             box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
           }
           .photo-lightbox-close {
@@ -305,19 +318,76 @@
             border-radius: 50%;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
           }
+          .photo-lightbox-nav {
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #111827;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+          }
+          .photo-lightbox-counter {
+            left: 50%;
+            bottom: -28px;
+            color: #fff;
+            font-size: 12px;
+            position: absolute;
+            transform: translateX(-50%);
+          }
         `;
 
         document.head.appendChild(style);
         document.body.appendChild(lightbox);
 
-        // Close lightbox when clicking backdrop or close button
-        lightbox.querySelector('.photo-lightbox-backdrop').addEventListener('click', function() {
-          document.body.removeChild(lightbox);
-        });
+        const img = lightbox.querySelector('img');
+        const prevButton = lightbox.querySelector('.photo-lightbox-prev');
+        const nextButton = lightbox.querySelector('.photo-lightbox-next');
+        const counter = lightbox.querySelector('.photo-lightbox-counter');
 
-        lightbox.querySelector('.photo-lightbox-close').addEventListener('click', function() {
+        const updateView = function() {
+          if (!urls.length) {
+            return;
+          }
+          img.src = urls[currentIndex];
+          counter.textContent = `${currentIndex + 1} {{ __('dropzone-enhanced::messages.lightbox.of') }} ${urls.length}`;
+        };
+
+        const goPrev = function() {
+          currentIndex = (currentIndex - 1 + urls.length) % urls.length;
+          updateView();
+        };
+
+        const goNext = function() {
+          currentIndex = (currentIndex + 1) % urls.length;
+          updateView();
+        };
+
+        updateView();
+
+        prevButton.addEventListener('click', goPrev);
+        nextButton.addEventListener('click', goNext);
+
+        const close = function() {
           document.body.removeChild(lightbox);
-        });
+          document.removeEventListener('keydown', onKeyDown);
+        };
+
+        const onKeyDown = function(event) {
+          if (event.key === 'Escape') {
+            close();
+          } else if (event.key === 'ArrowLeft') {
+            goPrev();
+          } else if (event.key === 'ArrowRight') {
+            goNext();
+          }
+        };
+
+        document.addEventListener('keydown', onKeyDown);
+
+        lightbox.querySelector('.photo-lightbox-backdrop').addEventListener('click', close);
+        lightbox.querySelector('.photo-lightbox-close').addEventListener('click', close);
       }
 
       // Set a photo as the main photo
