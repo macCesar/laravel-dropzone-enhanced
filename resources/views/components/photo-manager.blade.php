@@ -49,7 +49,7 @@
       @endphp
       <div class="dz-zone" data-locale="{{ $locale['key_for_data'] }}" role="listitem">
         <div class="dz-zone-header">
-          <span class="dz-zone-label">{{ $locale['label'] }}</span>
+          <h3 class="dz-zone-label">{{ $locale['label'] }}</h3>
           <span class="dz-count-pill" data-dz-count="{{ $locale['key_for_data'] }}">{{ $localePhotos->count() }}</span>
         </div>
 
@@ -161,6 +161,24 @@
       display: flex;
     }
 
+    .dz-zones.is-multi .dz-zone {
+      padding: 0;
+      border: none;
+      background: transparent;
+    }
+
+    .dz-zones.is-multi .dz-zone-header {
+      margin-bottom: 12px;
+    }
+
+    .dz-zones.is-multi .dz-count-pill {
+      display: none;
+    }
+
+    .dz-zones.is-multi .dropzone {
+      height: var(--dz-dropzone-height, 150px);
+    }
+
     .dz-zone {
       flex: 1;
       min-width: 0;
@@ -201,8 +219,10 @@
       gap: 10px;
       display: flex;
       align-items: center;
-      font-weight: 600;
-      color: #1f2937;
+    }
+
+    .dz-zone-label {
+      margin: 0;
     }
 
     .dz-count-pill {
@@ -503,6 +523,11 @@
 
       const zones = Array.from(manager.querySelectorAll('.dz-zone'));
       const zonesWrapper = manager.querySelector('.dz-zones');
+      const isMultiZone = zones.length > 1;
+
+      if (isMultiZone && zonesWrapper) {
+        zonesWrapper.classList.add('is-multi');
+      }
 
       const setActiveZone = function(localeKey) {
         zones.forEach(zone => {
