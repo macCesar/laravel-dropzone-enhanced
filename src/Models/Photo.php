@@ -131,7 +131,7 @@ class Photo extends Model
    * @param int|null $quality Image quality 0-100 (null = config default)
    * @return string
    */
-  public function getUrl($dimensions = null, $format = null, $quality = null)
+  public function getUrl($dimensions = null, $format = null, $quality = null, ?string $cropPosition = null)
   {
     // If no processing needed, return original URL
     if (!$dimensions && !$format) {
@@ -139,7 +139,7 @@ class Photo extends Model
     }
 
     // For processed images, delegate to getThumbnailUrl
-    return $this->getThumbnailUrl($dimensions, $format, $quality);
+    return $this->getThumbnailUrl($dimensions, $format, $quality, $cropPosition);
   }
 
   /**
@@ -160,7 +160,7 @@ class Photo extends Model
    * @param int|null $quality Image quality 0-100 (null = use config default)
    * @return string
    */
-  public function getThumbnailUrl($dimensions = null, $format = null, $quality = null, $cropPosition = 'center')
+  public function getThumbnailUrl($dimensions = null, $format = null, $quality = null, $cropPosition = null)
   {
     // Set default dimensions from config if not provided
     if (!$dimensions) {
@@ -223,7 +223,7 @@ class Photo extends Model
    * @param int|null $quality Image quality 0-100 (null = use config default)
    * @return bool Success status
    */
-  public function generateThumbnail($dimensions, $format = null, $quality = null, string $cropPosition = 'center')
+  public function generateThumbnail($dimensions, $format = null, $quality = null, ?string $cropPosition = null)
   {
     // Basic validation (optimization #3: fail fast)
     if (!$dimensions || !preg_match('/^(\d+)x(\d+)$/', $dimensions, $matches)) {

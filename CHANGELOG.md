@@ -2,6 +2,19 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.4.2 - 2025-12-22
+
+### Fixed
+- 🐛 **Crop Position Config Bug**: Fixed an issue where the `crop_position` configuration in `config/dropzone.php` was being ignored because the default value in method signatures was hardcoded to `'center'`. Now it correctly respects your configuration.
+
+### Added
+- **Dynamic Crop Position Override**: Added the ability to override `crop_position` on a per-call basis in:
+  - `getMainPhotoThumbnailUrl($dimensions, $cropPosition)`
+  - `getMainPhotoUrl($dimensions, $format, $quality, $cropPosition)`
+  - `src($dimensions, $format, $quality, $cropPosition)`
+  - `srcset(..., $cropPosition)`
+  - `srcFromPath(..., $cropPosition)`
+
 ## 2.4.1 - 2025-12-19
 
 ### Changed

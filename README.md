@@ -271,12 +271,14 @@ $url = $product->getMainPhotoUrl();
 
 // Get the thumbnail URL of the main photo (default dimensions from config)
 $thumbUrl = $product->getMainPhotoThumbnailUrl();
+$thumbUrlTop = $product->getMainPhotoThumbnailUrl('400x400', 'top'); // Override crop position
 
 // Get custom processed images (NEW in v2.1)
 $mainPhoto = $product->mainPhoto();
 $customUrl = $mainPhoto?->getUrl('400x400'); // Square 400x400
 $webpUrl = $mainPhoto?->getUrl('800x600', 'webp'); // WebP format
 $qualityUrl = $mainPhoto?->getUrl('400x400', 'jpg', 85); // Custom quality
+$topCropUrl = $mainPhoto?->getUrl('400x400', 'webp', 90, 'top'); // Custom crop position
 
 // Set a specific photo as the main one
 $product->setMainPhoto($photoId);
@@ -291,8 +293,10 @@ $product->deleteAllPhotos();
 
 // Quick helpers (NEW)
 $product->src('300'); // Main photo, width-only; keeps aspect ratio
+$product->src('300x300', 'webp', null, 'top'); // Main photo with top crop
 $product->srcset('300x200', 3, 'jpg'); // 1x/2x/3x srcset for main photo
 $photo->src('400'); // Specific Photo model, width-only
+$photo->src('400x400', 'webp', null, 'bottom'); // Specific Photo model with bottom crop
 $photo->srcset('400x300', 2, 'webp'); // Srcset for a Photo model
 $product->srcFromPath('clients/avatar/main-photo.jpg', '300', 'webp'); // Any storage path
 $product->srcsetFromPath('clients/avatar/main-photo.jpg', '300x300', 3, 'jpg'); // Srcset from storage path

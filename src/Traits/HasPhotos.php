@@ -92,9 +92,9 @@ trait HasPhotos
    *
    * @return string|null
    */
-  public function getMainPhotoUrl($dimensions = null, $format = null, $quality = null)
+  public function getMainPhotoUrl($dimensions = null, $format = null, $quality = null, ?string $cropPosition = null)
   {
-    return $this->mainPhoto()?->getUrl($dimensions, $format, $quality);
+    return $this->mainPhoto()?->getUrl($dimensions, $format, $quality, $cropPosition);
   }
 
   /**
@@ -103,9 +103,9 @@ trait HasPhotos
    * @param string|null $dimensions
    * @return string|null
    */
-  public function getMainPhotoThumbnailUrl($dimensions = null)
+  public function getMainPhotoThumbnailUrl($dimensions = null, ?string $cropPosition = null)
   {
-    return $this->mainPhoto()?->getThumbnailUrl($dimensions);
+    return $this->mainPhoto()?->getThumbnailUrl($dimensions, null, null, $cropPosition);
   }
 
   /**
@@ -171,7 +171,7 @@ trait HasPhotos
     ?string $format = null,
     ?int $quality = null,
     ?string $disk = null,
-    string $cropPosition = 'center'
+    ?string $cropPosition = null
   ): ?string {
     $disk ??= config('dropzone.storage.disk', config('filesystems.default'));
     $storage = Storage::disk($disk);
@@ -240,10 +240,11 @@ trait HasPhotos
    * @param string|null $format
    * @return string
    */
-  protected function buildThumbnailPathFromPath(string $path, string $dimensions, ?string $format = null, string $cropPosition = 'center'): string
+  protected function buildThumbnailPathFromPath(string $path, string $dimensions, ?string $format = null, ?string $cropPosition = null): string
   {
     $directory = dirname($path);
     $filename = basename($path);
+    $cropPosition = $cropPosition ?: config('dropzone.images.thumbnails.crop_position', 'center');
     $canonicalCrop = ImageProcessor::canonicalCropPosition($cropPosition);
 
     if ($format) {
@@ -319,7 +320,7 @@ trait HasPhotos
     ?string $format = 'webp',
     ?int $quality = null,
     ?string $disk = null,
-    string $cropPosition = 'center'
+    ?string $cropPosition = null
   ): ?string {
     return $this->getPhotoUrlFromPath($path, $dimensions, $format, $quality, $disk, $cropPosition);
   }
@@ -342,7 +343,7 @@ trait HasPhotos
     ?string $format = 'webp',
     ?int $quality = null,
     ?string $disk = null,
-    string $cropPosition = 'center'
+    ?string $cropPosition = null
   ): ?string {
     $dimensions ??= config('dropzone.images.thumbnails.dimensions', '288x288');
     [$width, $height] = $this->parseDimensions($dimensions);
@@ -377,7 +378,7 @@ trait HasPhotos
    * @param int|null $quality
    * @return string|null
    */
-  public function src(?string $dimensions = null, ?string $format = 'webp', ?int $quality = null): ?string
+  public function src(?string $dimensions = null, ?string $format = 'webp', ?int $quality = null, ?string $cropPosition = null): ?string
   {
     $photo = $this->mainPhoto();
 
@@ -385,7 +386,7 @@ trait HasPhotos
       return null;
     }
 
-    return $photo->getUrl($dimensions, $format, $quality);
+    return $photo->getUrl($dimensions, $format, $quality, $cropPosition);
   }
 
   /**
@@ -401,7 +402,8 @@ trait HasPhotos
     ?string $dimensions = null,
     int $multipliers = 2,
     ?string $format = 'webp',
-    ?int $quality = null
+    ?int $quality = null,
+    ?string $cropPosition = null
   ): ?string {
     $photo = $this->mainPhoto();
 
@@ -417,13 +419,13 @@ trait HasPhotos
     $urls = [];
 
     if (!$width || !$height) {
-      $single = $photo->getUrl($dimensions, $format, $quality);
+      $single = $photo->getUrl($dimensions, $format, $quality, $cropPosition);
       return $single ? "{$single} 1x" : null;
     }
 
     for ($i = 1; $i <= $multipliers; $i++) {
       $scaledDim = ($width * $i) . 'x' . ($height * $i);
-      $url = $photo->getUrl($scaledDim, $format, $quality);
+      $url = $photo->getUrl($scaledDim, $format, $quality, $cropPosition);
       if ($url) {
         $urls[] = "{$url} {$i}x";
       }
