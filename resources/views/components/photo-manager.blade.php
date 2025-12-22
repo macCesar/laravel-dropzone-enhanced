@@ -159,25 +159,17 @@
     .dz-zones {
       gap: 16px;
       display: flex;
-      --dz-zone-padding: 16px;
-      --dz-zone-radius: 10px;
-      --dz-zone-bg: #f8fafc;
-      --dz-zone-border: 1px dashed #d1d5db;
-      --dz-zone-header-margin: 0;
-      --dz-zone-count-display: inline;
-    }
-
-    .dz-zones.is-multi {
       --dz-zone-padding: 0;
       --dz-zone-radius: 0;
       --dz-zone-bg: transparent;
       --dz-zone-border: none;
       --dz-zone-header-margin: 12px;
       --dz-zone-count-display: none;
+      --dz-dropzone-height: 180px;
     }
 
-    .dz-zones.is-multi .dropzone {
-      height: var(--dz-dropzone-height, 150px);
+    .dz-zones.is-multi .dropzone .dz-instructions {
+      display: none;
     }
 
     .dz-zone {
@@ -187,32 +179,23 @@
       border-radius: var(--dz-zone-radius);
       background: var(--dz-zone-bg);
       border: var(--dz-zone-border);
-      transition: flex 0.5s ease, background 0.3s ease, border-color 0.3s ease;
+      transition: flex 0.5s ease;
     }
 
     .dz-zone .dropzone .dz-message {
       opacity: 1;
       transform: translateY(0);
-      transition-property: opacity, transform;
-      transition-duration: 0.12s;
-      transition-timing-function: ease;
-      transition-delay: 0.35s;
+      transition: opacity 0.2s ease, transform 0.2s ease;
     }
 
     .dz-zone.is-collapsed .dropzone .dz-message {
       opacity: 0;
-      transform: translateY(-6px);
+      transform: translateY(-10px);
       pointer-events: none;
-      transition-delay: 0s;
     }
 
     .dz-zone.is-active {
-      flex: 4;
-      border-color: #3b82f6;
-    }
-
-    .dz-zone.is-collapsed {
-      flex: 1;
+      flex: 3;
     }
 
     .dz-zone-header {
@@ -224,6 +207,9 @@
 
     .dz-zone-label {
       margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #374151;
     }
 
     .dz-count-pill {

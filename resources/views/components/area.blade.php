@@ -39,6 +39,11 @@
       text-align: center;
       cursor: pointer;
       transition: all 0.3s ease;
+      min-height: 180px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
 
     .dropzone:hover {
