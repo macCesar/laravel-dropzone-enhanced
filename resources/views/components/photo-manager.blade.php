@@ -159,20 +159,21 @@
     .dz-zones {
       gap: 16px;
       display: flex;
+      --dz-zone-padding: 16px;
+      --dz-zone-radius: 10px;
+      --dz-zone-bg: #f8fafc;
+      --dz-zone-border: 1px dashed #d1d5db;
+      --dz-zone-header-margin: 0;
+      --dz-zone-count-display: inline;
     }
 
-    .dz-zones.is-multi .dz-zone {
-      padding: 0;
-      border: none;
-      background: transparent;
-    }
-
-    .dz-zones.is-multi .dz-zone-header {
-      margin-bottom: 12px;
-    }
-
-    .dz-zones.is-multi .dz-count-pill {
-      display: none;
+    .dz-zones.is-multi {
+      --dz-zone-padding: 0;
+      --dz-zone-radius: 0;
+      --dz-zone-bg: transparent;
+      --dz-zone-border: none;
+      --dz-zone-header-margin: 12px;
+      --dz-zone-count-display: none;
     }
 
     .dz-zones.is-multi .dropzone {
@@ -182,10 +183,10 @@
     .dz-zone {
       flex: 1;
       min-width: 0;
-      padding: 16px;
-      border-radius: 10px;
-      background: #f8fafc;
-      border: 1px dashed #d1d5db;
+      padding: var(--dz-zone-padding);
+      border-radius: var(--dz-zone-radius);
+      background: var(--dz-zone-bg);
+      border: var(--dz-zone-border);
       transition: flex 0.5s ease, background 0.3s ease, border-color 0.3s ease;
     }
 
@@ -207,7 +208,6 @@
 
     .dz-zone.is-active {
       flex: 4;
-      background: #eff6ff;
       border-color: #3b82f6;
     }
 
@@ -219,6 +219,7 @@
       gap: 10px;
       display: flex;
       align-items: center;
+      margin-bottom: var(--dz-zone-header-margin);
     }
 
     .dz-zone-label {
@@ -227,6 +228,7 @@
 
     .dz-count-pill {
       margin-left: auto;
+      display: var(--dz-zone-count-display);
       font-size: 12px;
       padding: 2px 10px;
       border-radius: 999px;
