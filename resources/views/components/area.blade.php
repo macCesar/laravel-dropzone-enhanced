@@ -15,7 +15,7 @@
   $uploadId = 'dropzone-upload-' . ($locale ?? 'default');
 @endphp
 
-<div class="dropzone-container" data-dimensions="{{ $dimensions }}" data-directory="{{ $directory }}" data-model-id="{{ $model->id }}" data-model-type="{{ get_class($model) }}" data-pre-resize="{{ $preResize ? 'true' : 'false' }}" data-keep-original-name="{{ $keepOriginalName ? 'true' : 'false' }}" data-locale="{{ $locale ?? '' }}" id="{{ $containerId }}">
+<div class="dropzone-container" data-dimensions="{{ $dimensions }}" data-directory="{{ $directory }}" data-model-id="{{ $model->id }}" data-model-type="{{ get_class($model) }}" data-pre-resize="{{ $preResize ? 'true' : 'false' }}" data-keep-original-name="{{ $keepOriginalName ? 'true' : 'false' }}" data-locale="{{ $locale ?? '' }}" data-max-files="{{ $maxFiles }}" data-max-filesize="{{ $maxFilesize }}" data-reload-on-success="{{ $reloadOnSuccess ? 'true' : 'false' }}" id="{{ $containerId }}">
   <div class="dropzone" id="{{ $uploadId }}">
     <div class="dz-message">
       {{ __('dropzone-enhanced::messages.dropzone.message') }}
@@ -68,37 +68,55 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      // Direct initialization of Dropzone instead of using discover
-      const dropzoneElement = document.getElementById('{{ $uploadId }}');
-      if (dropzoneElement) {
-        const myDropzone = new Dropzone('#{{ $uploadId }}', {
+      if (typeof Dropzone === 'undefined') {
+        return;
+      }
+
+      const parseDimensions = function(dimensions) {
+        const fallback = { width: 1920, height: 1080 };
+        if (!dimensions) {
+          return fallback;
+        }
+        const parts = dimensions.split('x').map(value => parseInt(value, 10));
+        if (parts.length !== 2 || Number.isNaN(parts[0]) || Number.isNaN(parts[1])) {
+          return fallback;
+        }
+        return { width: parts[0], height: parts[1] };
+      };
+
+      document.querySelectorAll('.dropzone-container').forEach(function(container) {
+        const dropzoneElement = container.querySelector('.dropzone');
+        if (!dropzoneElement || dropzoneElement.dataset.dzInitialized === 'true') {
+          return;
+        }
+        dropzoneElement.dataset.dzInitialized = 'true';
+
+        const maxFiles = parseInt(container.dataset.maxFiles || '10', 10);
+        const maxFilesize = parseFloat(container.dataset.maxFilesize || '10');
+        const reloadOnSuccess = container.dataset.reloadOnSuccess === 'true';
+        const dimensions = parseDimensions(container.dataset.dimensions);
+        const preResize = container.dataset.preResize === 'true';
+
+        const options = {
           url: "{{ route('dropzone.upload') }}",
           paramName: "file",
-          maxFiles: {{ $maxFiles }},
-          maxFilesize: {{ $maxFilesize }}, // MB
+          maxFiles: Number.isNaN(maxFiles) ? 10 : maxFiles,
+          maxFilesize: Number.isNaN(maxFilesize) ? 10 : maxFilesize, // MB
           acceptedFiles: "image/*",
           headers: {
             'X-CSRF-TOKEN': '{{ csrf_token() }}'
           },
-          // Enhanced resizing configuration
-          @if ($preResize)
-            resizeMethod: "contain",
-            resizeQuality: {{ config('dropzone.images.quality', 100) / 100 }},
-            resizeWidth: {{ $dimensions ? explode('x', $dimensions)[0] : 1920 }},
-            resizeHeight: {{ $dimensions ? explode('x', $dimensions)[1] : 1080 }},
-          @endif
           thumbnailWidth: 576,
           thumbnailHeight: 576,
           thumbnailMethod: "crop",
           createImageThumbnails: true,
           init: function() {
             const dropzone = this;
-            const container = document.getElementById('{{ $containerId }}');
 
             // Add additional data
             this.on("sending", function(file, xhr, formData) {
               // Convert the ID to integer to ensure it is an integer and not a string
-              formData.append("model_id", parseInt(container.dataset.modelId));
+              formData.append("model_id", parseInt(container.dataset.modelId, 10));
               formData.append("model_type", container.dataset.modelType);
               formData.append("directory", container.dataset.directory);
               // Ensure dimensions always has a value
@@ -133,7 +151,7 @@
             // Handle queue completion
             this.on("queuecomplete", function() {
               // Check if the reloadOnSuccess prop is true and if there were no errors
-              if ({{ $reloadOnSuccess ? 'true' : 'false' }} && this.getRejectedFiles().length === 0) {
+              if (reloadOnSuccess && this.getRejectedFiles().length === 0) {
                 // Wait a moment for the last success animation to be seen, then reload
                 setTimeout(() => {
                   window.location.reload();
@@ -186,8 +204,17 @@
           dictCancelUploadConfirmation: "{{ __('dropzone-enhanced::messages.dropzone.cancel_confirmation') }}",
           dictRemoveFile: "{{ __('dropzone-enhanced::messages.dropzone.remove_file') }}",
           dictMaxFilesExceeded: "{{ __('dropzone-enhanced::messages.dropzone.max_files_exceeded') }}"
-        });
-      }
+        };
+
+        if (preResize) {
+          options.resizeMethod = "contain";
+          options.resizeQuality = {{ config('dropzone.images.quality', 100) / 100 }};
+          options.resizeWidth = dimensions.width;
+          options.resizeHeight = dimensions.height;
+        }
+
+        const myDropzone = new Dropzone(dropzoneElement, options);
+      });
     });
   </script>
 @endonce

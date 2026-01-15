@@ -2,6 +2,11 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.4.3 - 2025-12-22
+
+### Fixed
+- 🐛 **Multi-zone Dropzone Init**: Initialize Dropzone on every `.dropzone-container` so all locale zones respond to click and drag-and-drop, not just the first instance.
+
 ## 2.4.2 - 2025-12-22
 
 ### Fixed
