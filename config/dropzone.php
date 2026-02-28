@@ -54,8 +54,8 @@ return [
 
     // Central directory for all generated thumbnails (relative to disk root).
     // Keeping thumbnails here makes cleanup easy: just delete this one folder.
-    // Example: storage/app/public/.cache/products/16/462x700_webp/photo.webp
-    'thumbnail_cache_path' => '.cache',
+    // Example: storage/app/public/cache/products/16/462x700_webp/photo.webp
+    'thumbnail_cache_path' => 'cache',
   ],
 
   /*

@@ -6,12 +6,12 @@ All notable changes to `laravel-dropzone-enhanced` will be documented in this fi
 
 ### ⚠️ Breaking Change — Thumbnail Storage Location
 
-All generated thumbnails are now stored in a **central `.cache/` directory** instead of `thumbnails/` subfolders scattered next to each original photo.
+All generated thumbnails are now stored in a **central `cache/` directory** instead of `thumbnails/` subfolders scattered next to each original photo.
 
 | | Before | After |
 |---|---|---|
-| Path | `products/16/thumbnails/462x700_webp/photo.webp` | `.cache/products/16/462x700_webp/photo.webp` |
-| Cleanup | Find every `thumbnails/` folder manually | `rm -rf storage/app/public/.cache` |
+| Path | `products/16/thumbnails/462x700_webp/photo.webp` | `cache/products/16/462x700_webp/photo.webp` |
+| Cleanup | Find every `thumbnails/` folder manually | `rm -rf storage/app/public/cache` |
 
 **Upgrade steps:**
 ```bash
@@ -29,10 +29,10 @@ php artisan products:warm-images   # or your equivalent command
   php artisan dropzoneenhanced:clear-thumbnails --force  # skip prompt
   php artisan dropzoneenhanced:clear-thumbnails --disk=s3 --force
   ```
-- **`storage.thumbnail_cache_path` config key** — customize the central cache directory (default: `.cache`):
+- **`storage.thumbnail_cache_path` config key** — customize the central cache directory (default: `cache`):
   ```php
   'storage' => [
-      'thumbnail_cache_path' => '.cache',
+      'thumbnail_cache_path' => 'cache',
   ],
   ```
 
