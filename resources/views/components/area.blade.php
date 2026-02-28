@@ -207,10 +207,30 @@
         };
 
         if (preResize) {
-          options.resizeMethod = "contain";
-          options.resizeQuality = {{ config('dropzone.images.quality', 100) / 100 }};
-          options.resizeWidth = dimensions.width;
-          options.resizeHeight = dimensions.height;
+          options.transformFile = function(file, done) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+              const img = new Image();
+              img.onload = function() {
+                const ratio = Math.min(dimensions.width / img.naturalWidth, dimensions.height / img.naturalHeight);
+                if (ratio >= 1) return done(file);
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = Math.round(img.naturalWidth * ratio);
+                canvas.height = Math.round(img.naturalHeight * ratio);
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                const outputType = file.type === 'image/png' ? 'image/png' : file.type;
+                const quality = file.type === 'image/png' ? undefined : {{ config('dropzone.images.quality', 100) / 100 }};
+                canvas.toBlob(blob => done(new File([blob], file.name, { type: outputType })), outputType, quality);
+              };
+              img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+          };
         }
 
         const myDropzone = new Dropzone(dropzoneElement, options);
