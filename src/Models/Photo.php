@@ -277,8 +277,9 @@ class Photo extends Model
       $filename = pathinfo($this->getPath(), PATHINFO_FILENAME);
       $extension = pathinfo($this->getPath(), PATHINFO_EXTENSION);
 
-      // Find thumbnail directories
-      $thumbnailBaseDir = $directory . '/thumbnails';
+      // Find thumbnail directories in central cache
+      $cachePath = config('dropzone.storage.thumbnail_cache_path', '.cache');
+      $thumbnailBaseDir = $cachePath . '/' . $directory;
       $storage = Storage::disk($this->disk);
 
       if ($storage->exists($thumbnailBaseDir)) {
@@ -385,7 +386,11 @@ class Photo extends Model
     $pathSuffix = $format ? "_{$format}" : '';
     $cropSuffix = $canonicalCrop !== 'center' ? '_' . str_replace('-', '_', $canonicalCrop) : '';
 
-    return $directory . '/thumbnails/' . $dimensions . $pathSuffix . $cropSuffix . '/' . $filename;
+    // All thumbnails live in a central cache directory for easy cleanup.
+    // e.g. .cache/products/16/462x700_webp/photo.webp
+    $cachePath = config('dropzone.storage.thumbnail_cache_path', '.cache');
+
+    return $cachePath . '/' . $directory . '/' . $dimensions . $pathSuffix . $cropSuffix . '/' . $filename;
   }
 
   /**
@@ -465,7 +470,13 @@ class Photo extends Model
 
     $urls = [];
     for ($i = 1; $i <= $multipliers; $i++) {
-      $scaledDim = ($width * $i) . 'x' . ($height * $i);
+      $scaledWidth = $width * $i;
+      // Recalculate height from original each time to avoid cumulative rounding errors
+      // e.g. round(2098 * 462/1386) = 699, then 699*2 = 1398 ≠ round(2098 * 924/1386) = 1399
+      $scaledHeight = ($this->width && $this->height && $this->width > 0)
+        ? (int) round($this->height * ($scaledWidth / $this->width))
+        : $height * $i;
+      $scaledDim = $scaledWidth . 'x' . $scaledHeight;
       $url = $this->getUrl($scaledDim, $format, $quality);
       if ($url) {
         $urls[] = "{$url} {$i}x";
