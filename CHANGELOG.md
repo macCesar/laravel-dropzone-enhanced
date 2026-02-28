@@ -43,6 +43,7 @@ php artisan products:warm-images   # or your equivalent command
 
 ### Fixed
 - 🐛 **Multi-zone Dropzone Init**: Initialize Dropzone on every `.dropzone-container` so all locale zones respond to click and drag-and-drop, not just the first instance.
+- 🖼️ **Browser pre-resize quality**: Replaced Dropzone's built-in `resizeWidth/resizeHeight/resizeQuality` options (which use low-quality canvas interpolation) with a custom `transformFile` hook that sets `ctx.imageSmoothingQuality = 'high'` before drawing. This enables Lanczos/bicubic interpolation in modern browsers, producing sharp resized images without aliasing artifacts. The `pre_resize` config option now resizes with high quality instead of degrading it.
 
 ## 2.4.2 - 2025-12-22
 

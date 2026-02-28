@@ -144,6 +144,37 @@ If you're upgrading from v2.1.7 or earlier:
 
 ---
 
+## Browser Pre-Resize Quality
+
+When `pre_resize` is enabled, the package resizes images **in the browser before uploading** to avoid sending unnecessarily large files to the server. The maximum dimensions are controlled by `default_dimensions` in config.
+
+Unlike Dropzone's built-in resize (which uses default canvas interpolation producing aliased, pixelated results), this package uses a custom `transformFile` hook that sets `imageSmoothingQuality = 'high'` on the canvas context, enabling **Lanczos/bicubic interpolation** in modern browsers — the same quality you'd get from Photoshop or ImageMagick.
+
+### Configuration
+
+```php
+// config/dropzone.php
+'images' => [
+    'pre_resize'         => true,          // Resize in browser before upload
+    'default_dimensions' => '1386x2100',   // Max width × height to keep
+    'quality'            => 100,           // JPEG output quality (0–100)
+],
+```
+
+### How it works
+
+```
+Original photo: 4032×3024 (12 MB)
+       ↓  Browser resizes with bicubic interpolation
+Upload to server: 1386×1039 (sharp, ~400 KB)
+       ↓  Server generates thumbnails from this
+Storefront: 462×346 webp, 924×693 webp, 1386×1039 webp
+```
+
+Setting `pre_resize: false` uploads the original file (useful when you need the full resolution on the server).
+
+---
+
 ## Thumbnail Cache Management
 
 All generated thumbnails are stored in a **central `.cache/` directory** at the root of your storage disk. This makes cache management simple — no need to hunt down `thumbnails/` folders scattered throughout your storage tree.
