@@ -2,6 +2,43 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.5.0 - 2026-02-28
+
+### ⚠️ Breaking Change — Thumbnail Storage Location
+
+All generated thumbnails are now stored in a **central `.cache/` directory** instead of `thumbnails/` subfolders scattered next to each original photo.
+
+| | Before | After |
+|---|---|---|
+| Path | `products/16/thumbnails/462x700_webp/photo.webp` | `.cache/products/16/462x700_webp/photo.webp` |
+| Cleanup | Find every `thumbnails/` folder manually | `rm -rf storage/app/public/.cache` |
+
+**Upgrade steps:**
+```bash
+# 1. Clear old thumbnails (scattered thumbnails/ folders)
+php artisan dropzoneenhanced:clear-thumbnails --force
+
+# 2. Regenerate in new central location
+php artisan products:warm-images   # or your equivalent command
+```
+
+### Added
+- **`dropzoneenhanced:clear-thumbnails` Artisan command** — deletes the entire thumbnail cache directory in one operation:
+  ```bash
+  php artisan dropzoneenhanced:clear-thumbnails          # with confirmation
+  php artisan dropzoneenhanced:clear-thumbnails --force  # skip prompt
+  php artisan dropzoneenhanced:clear-thumbnails --disk=s3 --force
+  ```
+- **`storage.thumbnail_cache_path` config key** — customize the central cache directory (default: `.cache`):
+  ```php
+  'storage' => [
+      'thumbnail_cache_path' => '.cache',
+  ],
+  ```
+
+### Fixed
+- **`srcset()` integer rounding mismatch**: Heights in multi-step srcsets were calculated by multiplying the 1x rounded height (`699 × 2 = 1398`), which didn't match independently calculated heights (`round(2098 × 924/1386) = 1399`). This caused pre-generated thumbnails to be bypassed (1–2px folder name mismatch), triggering slow on-demand generation. Heights are now recalculated from the original photo dimensions for each multiplier step.
+
 ## 2.4.3 - 2025-12-22
 
 ### Fixed

@@ -11,11 +11,12 @@ A powerful and customizable Laravel package that enhances Dropzone.js to provide
 - **Seamless Integration**: Add a complete image management UI to your models with a single trait and two Blade components.
 - **Standalone & Dependency-Free**: Works out-of-the-box with no need for external libraries like Glide.
 - **Automatic Thumbnail Generation**: Natively processes and creates thumbnails for fast-loading galleries.
+- **Central Thumbnail Cache**: All generated thumbnails stored in a single `.cache/` directory — clean up everything with one command or `rm -rf storage/app/public/.cache`.
 - **Full Management UI**: Includes drag & drop reordering, main image selection, lightbox preview with navigation, and secure deletion.
 - **Highly Customizable**: Configure everything from image dimensions and quality to storage disks and route middleware.
 - **Smart URL Generation**: Automatic relative URL generation that works consistently across all environments (local, staging, production) without `.env` configuration hassles.
 - **Handy Helpers**: `src`/`srcset` helpers on models and photos (including raw storage paths) for quick, optimized URLs.
-- **Broad Compatibility**: Supports Laravel 8, 9, 10, and 11.
+- **Broad Compatibility**: Supports Laravel 8, 9, 10, 11, and 12.
 
 ## Requirements
 
@@ -140,6 +141,74 @@ If you're upgrading from v2.1.7 or earlier:
   2. Set `'use_relative_urls' => true` in `config/dropzone.php`
   3. Clear config cache: `php artisan config:clear`
 - **If you had workarounds**: Once relative URLs are enabled, you can remove any workarounds like commenting out `APP_URL` in `.env`
+
+---
+
+## Thumbnail Cache Management
+
+All generated thumbnails are stored in a **central `.cache/` directory** at the root of your storage disk. This makes cache management simple — no need to hunt down `thumbnails/` folders scattered throughout your storage tree.
+
+### Storage Structure
+
+```
+storage/app/public/
+├── .cache/                          ← All generated thumbnails here
+│   └── products/
+│       └── 16/
+│           ├── 462x700_webp/
+│           │   └── abc123.webp
+│           ├── 924x1400_webp/
+│           │   └── abc123.webp
+│           └── 96x145_webp/
+│               └── abc123.webp
+└── products/
+    └── 16/
+        └── abc123.jpg               ← Original images (untouched)
+```
+
+### Clearing Thumbnails
+
+**Via Artisan command:**
+```bash
+# With confirmation prompt
+php artisan dropzoneenhanced:clear-thumbnails
+
+# Skip confirmation (useful for deploy scripts)
+php artisan dropzoneenhanced:clear-thumbnails --force
+
+# Use a specific disk
+php artisan dropzoneenhanced:clear-thumbnails --disk=s3 --force
+```
+
+**Directly on the server:**
+```bash
+rm -rf storage/app/public/.cache
+```
+
+After clearing, thumbnails regenerate on demand when pages are accessed, or you can pre-generate them with your own warm-up command.
+
+### Configuration
+
+```php
+// config/dropzone.php
+'storage' => [
+    'disk' => 'public',
+    'directory' => 'images',
+    'thumbnail_cache_path' => '.cache',  // Customize the cache directory name
+],
+```
+
+### Upgrading from v2.4.x
+
+Previous versions stored thumbnails in `thumbnails/` subfolders next to each original photo (e.g., `products/16/thumbnails/462x700_webp/`). After upgrading to v2.5.0, old thumbnails are no longer served. Regenerate them:
+
+```bash
+# Remove old scattered thumbnails (optional but recommended)
+find storage/app/public -type d -name "thumbnails" -exec rm -rf {} + 2>/dev/null; true
+
+# Pre-generate in new central location
+php artisan products:warm-images   # or your equivalent command
+```
 
 ---
 
