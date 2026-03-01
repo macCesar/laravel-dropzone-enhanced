@@ -383,14 +383,15 @@ class Photo extends Model
       $filename = $pathInfo['filename'] . '.' . $format;
     }
 
-    $pathSuffix = $format ? "_{$format}" : '';
     $cropSuffix = $canonicalCrop !== 'center' ? '_' . str_replace('-', '_', $canonicalCrop) : '';
 
     // All thumbnails live in a central cache directory for easy cleanup.
-    // e.g. .cache/products/16/462x700_webp/photo.webp
+    // Format is conveyed by the file extension — no need to repeat it in the folder name.
+    // e.g. cache/products/16/462x700/photo.webp
+    //      cache/products/16/462x700/photo.jpg
     $cachePath = config('dropzone.storage.thumbnail_cache_path', '.cache');
 
-    return $cachePath . '/' . $directory . '/' . $dimensions . $pathSuffix . $cropSuffix . '/' . $filename;
+    return $cachePath . '/' . $directory . '/' . $dimensions . $cropSuffix . '/' . $filename;
   }
 
   /**

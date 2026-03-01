@@ -2,6 +2,34 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.7.0 - 2026-03-01
+
+### ⚠️ Breaking Change — Thumbnail Folder Structure
+
+Format is no longer included in the cache folder name. The file extension already conveys the format — the `_webp` / `_jpg` suffix in folder names was redundant.
+
+|                 | Before                                          | After                                      |
+| --------------- | ----------------------------------------------- | ------------------------------------------ |
+| WebP thumb      | `cache/products/16/462x700_webp/photo.webp`     | `cache/products/16/462x700/photo.webp`     |
+| JPG thumb       | `cache/products/16/462x700_jpg/photo.jpg`       | `cache/products/16/462x700/photo.jpg`      |
+| Non-center crop | `cache/products/16/462x700_webp_top/photo.webp` | `cache/products/16/462x700_top/photo.webp` |
+
+**Benefits:**
+- All format variants of the same dimensions share one folder — easier to inspect and manage
+- Cleaner, less redundant paths
+- `rm -rf cache/products/16/462x700/` clears all format variants of that size at once
+
+**Upgrade steps:**
+```bash
+# Clear old thumbnails (they will regenerate on demand)
+rm -rf storage/app/public/cache
+
+# Or pre-generate with your warm command
+php artisan products:warm-images
+```
+
+---
+
 ## 2.6.0 - 2026-03-01
 
 ### Added
@@ -49,10 +77,10 @@ All new props default to their config values (empty `warm_sizes` → no warm gen
 
 All generated thumbnails are now stored in a **central `cache/` directory** instead of `thumbnails/` subfolders scattered next to each original photo.
 
-| | Before | After |
-|---|---|---|
-| Path | `products/16/thumbnails/462x700_webp/photo.webp` | `cache/products/16/462x700_webp/photo.webp` |
-| Cleanup | Find every `thumbnails/` folder manually | `rm -rf storage/app/public/cache` |
+|         | Before                                           | After                                  |
+| ------- | ------------------------------------------------ | -------------------------------------- |
+| Path    | `products/16/thumbnails/462x700_webp/photo.webp` | `cache/products/16/462x700/photo.webp` |
+| Cleanup | Find every `thumbnails/` folder manually         | `rm -rf storage/app/public/cache`      |
 
 **Upgrade steps:**
 ```bash

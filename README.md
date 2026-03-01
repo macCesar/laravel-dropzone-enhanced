@@ -187,16 +187,19 @@ storage/app/public/
 ├── cache/                          ← All generated thumbnails here
 │   └── products/
 │       └── 16/
-│           ├── 462x700_webp/
+│           ├── 462x700/
+│           │   ├── abc123.webp     ← WebP variant
+│           │   └── abc123.jpg      ← JPG variant (if requested)
+│           ├── 924x1400/
 │           │   └── abc123.webp
-│           ├── 924x1400_webp/
-│           │   └── abc123.webp
-│           └── 96x145_webp/
+│           └── 96x145/
 │               └── abc123.webp
 └── products/
     └── 16/
         └── abc123.jpg               ← Original images (untouched)
 ```
+
+The format belongs in the file extension — no redundant `_webp` suffix in folder names. All format variants of the same dimensions share the same folder.
 
 ### Clearing Thumbnails
 
@@ -321,20 +324,20 @@ In your Blade view (e.g., `resources/views/products/edit.blade.php`), add the tw
 
 This component provides the file upload interface.
 
-| Parameter          | Type     | Description                                                                                         | Default                                        |
-| :----------------- | :------- | :-------------------------------------------------------------------------------------------------- | :--------------------------------------------- |
-| `:model`           | `Model`  | **Required.** The Eloquent model instance to attach photos to.                                      |                                                |
-| `directory`        | `string` | **Required.** The subdirectory within your storage disk to save the images.                         |                                                |
-| `dimensions`       | `string` | Max dimensions for resize (e.g., "1920x1080").                                                      | `config('dropzone.images.default_dimensions')` |
-| `preResize`        | `bool`   | Whether to resize the image in the browser before upload. Set `false` to preserve original quality. | `config('dropzone.images.pre_resize')`         |
-| `maxFiles`         | `int`    | Maximum number of files allowed to be uploaded.                                                     | `config('dropzone.images.max_files')`          |
-| `maxFilesize`      | `int`    | Maximum file size in MB.                                                                            | `config('dropzone.images.max_filesize')`       |
-| `reloadOnSuccess`  | `bool`   | If `true`, the page will automatically reload after all uploads are successfully completed.         | `false`                                        |
-| `keepOriginalName` | `bool`     | If `true`, store files using the sanitized original filename (adds numeric suffix on collisions).   | `false`                                          |
-| `locale`           | `string`   | Assign uploaded photos to a locale (requires multilingual enabled).                                  | `null`                                           |
-| `warmSizes`        | `string[]` | Array of dimension strings to pre-generate immediately at upload time (e.g. `['462', '1200x675']`). | `config('dropzone.images.warm_sizes')`           |
-| `warmFactor`       | `int`      | Multiplier for warm generation: `2` = 1× + 2× per size. Range: 1–5.                                | `config('dropzone.images.warm_factor')`          |
-| `warmFormat`       | `string`   | Output format for warmed thumbnails: `webp`, `jpg`, or `png`.                                       | `config('dropzone.images.warm_format')`          |
+| Parameter          | Type       | Description                                                                                         | Default                                        |
+| :----------------- | :--------- | :-------------------------------------------------------------------------------------------------- | :--------------------------------------------- |
+| `:model`           | `Model`    | **Required.** The Eloquent model instance to attach photos to.                                      |                                                |
+| `directory`        | `string`   | **Required.** The subdirectory within your storage disk to save the images.                         |                                                |
+| `dimensions`       | `string`   | Max dimensions for resize (e.g., "1920x1080").                                                      | `config('dropzone.images.default_dimensions')` |
+| `preResize`        | `bool`     | Whether to resize the image in the browser before upload. Set `false` to preserve original quality. | `config('dropzone.images.pre_resize')`         |
+| `maxFiles`         | `int`      | Maximum number of files allowed to be uploaded.                                                     | `config('dropzone.images.max_files')`          |
+| `maxFilesize`      | `int`      | Maximum file size in MB.                                                                            | `config('dropzone.images.max_filesize')`       |
+| `reloadOnSuccess`  | `bool`     | If `true`, the page will automatically reload after all uploads are successfully completed.         | `false`                                        |
+| `keepOriginalName` | `bool`     | If `true`, store files using the sanitized original filename (adds numeric suffix on collisions).   | `false`                                        |
+| `locale`           | `string`   | Assign uploaded photos to a locale (requires multilingual enabled).                                 | `null`                                         |
+| `warmSizes`        | `string[]` | Array of dimension strings to pre-generate immediately at upload time (e.g. `['462', '1200x675']`). | `config('dropzone.images.warm_sizes')`         |
+| `warmFactor`       | `int`      | Multiplier for warm generation: `2` = 1× + 2× per size. Range: 1–5.                                 | `config('dropzone.images.warm_factor')`        |
+| `warmFormat`       | `string`   | Output format for warmed thumbnails: `webp`, `jpg`, or `png`.                                       | `config('dropzone.images.warm_format')`        |
 
 Example: keep original filenames in a custom directory
 ```blade
@@ -385,11 +388,11 @@ By default, thumbnails are generated **on demand** the first time a view calls `
 
 This component displays and manages existing photos for a model. The view action opens a built-in lightbox with prev/next navigation and keyboard support.
 
-| Parameter             | Type     | Description                                                                 | Default                                    |
-| :-------------------- | :------- | :-------------------------------------------------------------------------- | :----------------------------------------- |
-| `:model`              | `Model`  | **Required.** The Eloquent model instance whose photos you want to display. |                                            |
-| `thumbnailDimensions` | `string` | Thumbnail size (e.g. `200x200`, `400x300`).                                  | `config('dropzone.images.thumbnails.dimensions')` |
-| `locale`              | `string` | Filter photos by locale (requires multilingual enabled).                     | `null`                                     |
+| Parameter             | Type     | Description                                                                 | Default                                           |
+| :-------------------- | :------- | :-------------------------------------------------------------------------- | :------------------------------------------------ |
+| `:model`              | `Model`  | **Required.** The Eloquent model instance whose photos you want to display. |                                                   |
+| `thumbnailDimensions` | `string` | Thumbnail size (e.g. `200x200`, `400x300`).                                 | `config('dropzone.images.thumbnails.dimensions')` |
+| `locale`              | `string` | Filter photos by locale (requires multilingual enabled).                    | `null`                                            |
 
 ---
 
@@ -409,14 +412,21 @@ $photo = $product->mainPhoto();
 // Get the URL of the main photo (original)
 $url = $product->getMainPhotoUrl();
 
+// Get the URL of the main photo with processing options
+// Signature: getMainPhotoUrl($dimensions, $format, $quality, $cropPosition)
+$squareUrl   = $product->getMainPhotoUrl('400x400');                   // Square 400x400
+$webpUrl     = $product->getMainPhotoUrl('800x600', 'webp');           // WebP format
+$qualityUrl  = $product->getMainPhotoUrl('400x400', 'jpg', 85);        // Custom quality
+$topCropUrl  = $product->getMainPhotoUrl('400x400', 'webp', 90, 'top'); // Custom crop position
+
 // Get the thumbnail URL of the main photo (default dimensions from config)
 $thumbUrl = $product->getMainPhotoThumbnailUrl();
 $thumbUrlTop = $product->getMainPhotoThumbnailUrl('400x400', 'top'); // Override crop position
 
-// Get custom processed images (NEW in v2.1)
+// Alternatively, get the main photo model and call getUrl() directly
 $mainPhoto = $product->mainPhoto();
 $customUrl = $mainPhoto?->getUrl('400x400'); // Square 400x400
-$webpUrl = $mainPhoto?->getUrl('800x600', 'webp'); // WebP format
+$webpUrl   = $mainPhoto?->getUrl('800x600', 'webp'); // WebP format
 $qualityUrl = $mainPhoto?->getUrl('400x400', 'jpg', 85); // Custom quality
 $topCropUrl = $mainPhoto?->getUrl('400x400', 'webp', 90, 'top'); // Custom crop position
 
