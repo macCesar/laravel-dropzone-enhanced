@@ -8,6 +8,9 @@
   'maxFilesize' => config('dropzone.images.max_filesize', 10000) / 1000,
   'keepOriginalName' => false,
   'locale' => null,
+  'warmSizes'  => config('dropzone.images.warm_sizes', []),
+  'warmFactor' => config('dropzone.images.warm_factor', 1),
+  'warmFormat' => config('dropzone.images.warm_format', 'webp'),
 ])
 
 @php
@@ -15,7 +18,7 @@
   $uploadId = 'dropzone-upload-' . ($locale ?? 'default');
 @endphp
 
-<div class="dropzone-container" data-dimensions="{{ $dimensions }}" data-directory="{{ $directory }}" data-model-id="{{ $model->id }}" data-model-type="{{ get_class($model) }}" data-pre-resize="{{ $preResize ? 'true' : 'false' }}" data-keep-original-name="{{ $keepOriginalName ? 'true' : 'false' }}" data-locale="{{ $locale ?? '' }}" data-max-files="{{ $maxFiles }}" data-max-filesize="{{ $maxFilesize }}" data-reload-on-success="{{ $reloadOnSuccess ? 'true' : 'false' }}" id="{{ $containerId }}">
+<div class="dropzone-container" data-dimensions="{{ $dimensions }}" data-directory="{{ $directory }}" data-model-id="{{ $model->id }}" data-model-type="{{ get_class($model) }}" data-pre-resize="{{ $preResize ? 'true' : 'false' }}" data-keep-original-name="{{ $keepOriginalName ? 'true' : 'false' }}" data-locale="{{ $locale ?? '' }}" data-max-files="{{ $maxFiles }}" data-max-filesize="{{ $maxFilesize }}" data-reload-on-success="{{ $reloadOnSuccess ? 'true' : 'false' }}" data-warm-sizes='@json($warmSizes)' data-warm-factor="{{ (int) $warmFactor }}" data-warm-format="{{ $warmFormat }}" id="{{ $containerId }}">
   <div class="dropzone" id="{{ $uploadId }}">
     <div class="dz-message">
       {{ __('dropzone-enhanced::messages.dropzone.message') }}
@@ -128,6 +131,11 @@
               if (locale && locale !== '') {
                 formData.append("locale", locale);
               }
+
+              // Add warm generation parameters
+              formData.append("warm_sizes", container.dataset.warmSizes || '[]');
+              formData.append("warm_factor", container.dataset.warmFactor || '1');
+              formData.append("warm_format", container.dataset.warmFormat || 'webp');
             });
 
             // Handle success

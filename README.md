@@ -16,6 +16,7 @@ A powerful and customizable Laravel package that enhances Dropzone.js to provide
 - **Highly Customizable**: Configure everything from image dimensions and quality to storage disks and route middleware.
 - **Smart URL Generation**: Automatic relative URL generation that works consistently across all environments (local, staging, production) without `.env` configuration hassles.
 - **Handy Helpers**: `src`/`srcset` helpers on models and photos (including raw storage paths) for quick, optimized URLs.
+- **Upload-time Image Warming**: Pre-generate all desired thumbnail sizes at upload time via `warmSizes`, `warmFactor`, and `warmFormat` props — no separate artisan warm commands needed for new uploads.
 - **Broad Compatibility**: Supports Laravel 8, 9, 10, 11, and 12.
 
 ## Requirements
@@ -329,8 +330,11 @@ This component provides the file upload interface.
 | `maxFiles`         | `int`    | Maximum number of files allowed to be uploaded.                                                     | `config('dropzone.images.max_files')`          |
 | `maxFilesize`      | `int`    | Maximum file size in MB.                                                                            | `config('dropzone.images.max_filesize')`       |
 | `reloadOnSuccess`  | `bool`   | If `true`, the page will automatically reload after all uploads are successfully completed.         | `false`                                        |
-| `keepOriginalName` | `bool`   | If `true`, store files using the sanitized original filename (adds numeric suffix on collisions).   | `false`                                        |
-| `locale`           | `string` | Assign uploaded photos to a locale (requires multilingual enabled).                                  | `null`                                         |
+| `keepOriginalName` | `bool`     | If `true`, store files using the sanitized original filename (adds numeric suffix on collisions).   | `false`                                          |
+| `locale`           | `string`   | Assign uploaded photos to a locale (requires multilingual enabled).                                  | `null`                                           |
+| `warmSizes`        | `string[]` | Array of dimension strings to pre-generate immediately at upload time (e.g. `['462', '1200x675']`). | `config('dropzone.images.warm_sizes')`           |
+| `warmFactor`       | `int`      | Multiplier for warm generation: `2` = 1× + 2× per size. Range: 1–5.                                | `config('dropzone.images.warm_factor')`          |
+| `warmFormat`       | `string`   | Output format for warmed thumbnails: `webp`, `jpg`, or `png`.                                       | `config('dropzone.images.warm_format')`          |
 
 Example: keep original filenames in a custom directory
 ```blade
@@ -340,6 +344,42 @@ Example: keep original filenames in a custom directory
   :keepOriginalName="true"
 />
 ```
+
+### Upload-time Image Warming
+
+By default, thumbnails are generated **on demand** the first time a view calls `$photo->src('462', 'webp')`. This causes a brief delay on first render. The `warmSizes`, `warmFactor`, and `warmFormat` props instruct the component to pre-generate all desired sizes **immediately at upload time**, so images load instantly from the very first request.
+
+```blade
+<x-dropzone-enhanced::area
+  :model="$post"
+  directory="blog/{{ $post->id }}"
+  :warmSizes="['1200x675', '800x450', '416x234', '80x80']"
+  :warmFactor="2"
+  warmFormat="webp"
+/>
+{{-- Generates 8 thumbnails synchronously:
+     1200x675@1x, 2400x1350@2x
+     800x450@1x,  1600x900@2x
+     416x234@1x,  832x468@2x
+     80x80@1x,    160x160@2x  --}}
+```
+
+**Dimension syntax** — identical to `src()` / `srcset()`:
+- Width-only (`'462'`) → height inferred from original aspect ratio
+- WxH (`'1200x675'`) → exact dimensions
+
+**Setting app-wide defaults** in `config/dropzone.php`:
+```php
+'images' => [
+    'warm_sizes'  => ['462', '96'],    // generated for every upload
+    'warm_factor' => 2,
+    'warm_format' => 'webp',
+],
+```
+
+**Performance**: generation is synchronous within the upload request. For 3–5 sizes × factor 2–3 (6–15 thumbnails) the added time is typically < 3 seconds — an acceptable trade-off versus slow first-render on-demand generation. If you need truly async warming, dispatch a queued job in your model observer after upload.
+
+---
 
 ### Gallery: `<x-dropzone-enhanced::photos />`
 

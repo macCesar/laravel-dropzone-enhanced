@@ -2,6 +2,47 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.6.0 - 2026-03-01
+
+### Added
+
+- **Upload-time image warming** via three new props on `<x-dropzone-enhanced::area />`:
+  - `warmSizes` — array of dimension strings (`'462'`, `'1200x675'`) to pre-generate immediately at upload time. Same syntax as `src()` / `srcset()`.
+  - `warmFactor` — integer multiplier (1–5). `warmFactor=2` generates 1× and 2× for each size, matching `srcset()`'s `$multipliers` argument.
+  - `warmFormat` — output format (`'webp'`, `'jpg'`, `'png'`).
+- **Three new config keys** under `images` in `config/dropzone.php`:
+  ```php
+  'warm_sizes'  => [],      // e.g. ['462', '96', '1200x675']
+  'warm_factor' => 1,
+  'warm_format' => 'webp',
+  ```
+- **New validation rules** in `DropzoneController::upload()` for `warm_sizes`, `warm_factor`, and `warm_format`.
+
+### How it works
+
+Warm generation reuses `$photo->srcset($dim, $factor, $format)` which already generates all size variants via the existing `ImageProcessor` pipeline. No new image-processing logic was added.
+
+```blade
+<x-dropzone-enhanced::area
+  :model="$post"
+  directory="blog/{{ $post->id }}"
+  :warmSizes="['1200x675', '800x450', '416x234']"
+  :warmFactor="2"
+  warmFormat="webp"
+/>
+{{-- Generates 6 thumbnails at upload time: 3 sizes × 2x multiplier --}}
+```
+
+### Performance note
+
+Thumbnail generation is synchronous within the upload request. For typical configurations (3–5 sizes × factor 2–3 = 6–15 thumbnails) the added time is < 3 seconds per photo — an acceptable trade-off versus slow first-render on-demand generation.
+
+### Backward compatibility
+
+All new props default to their config values (empty `warm_sizes` → no warm generation). Existing dropzones are completely unaffected.
+
+---
+
 ## 2.5.0 - 2026-02-28
 
 ### ⚠️ Breaking Change — Thumbnail Storage Location

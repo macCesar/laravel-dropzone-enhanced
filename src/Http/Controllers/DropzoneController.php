@@ -29,6 +29,9 @@ class DropzoneController extends Controller
         'keep_original_name' => 'nullable|boolean',
         'file' => 'required|file|image|max:' . config('dropzone.images.max_filesize', 5000),
         'locale' => 'nullable|string|max:10',
+        'warm_sizes'  => ['nullable', 'string'],
+        'warm_factor' => ['nullable', 'integer', 'min:1', 'max:5'],
+        'warm_format' => ['nullable', 'string', 'in:webp,jpg,png'],
       ];
 
       $request->validate($rules);
@@ -147,6 +150,17 @@ class DropzoneController extends Controller
 
       // Create photo record
       $photo = Photo::create($photoData);
+
+      // Warm (pre-generate) image sizes immediately at upload time
+      $warmSizes  = json_decode($request->input('warm_sizes', '[]'), true);
+      $warmFactor = max(1, (int) $request->input('warm_factor', 1));
+      $warmFormat = $request->input('warm_format', 'webp');
+
+      if (is_array($warmSizes) && $warmSizes !== []) {
+        foreach ($warmSizes as $dim) {
+          $photo->srcset((string) $dim, $warmFactor, $warmFormat);
+        }
+      }
 
       return response()->json([
         'success' => true,

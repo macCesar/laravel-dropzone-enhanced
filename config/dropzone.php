@@ -34,6 +34,18 @@ return [
       'crop_position' => 'center', // options: center, top, bottom, left, right, top-left, top-right, bottom-left, bottom-right
     ],
 
+    // Warm (pre-generate) thumbnail sizes immediately at upload time.
+    // Supports width-only ('462') or WxH ('1200x675') — same syntax as src() / srcset().
+    // Empty array (default) disables warm generation (current behavior unchanged).
+    'warm_sizes'  => [],
+
+    // Multiplier for warm generation. warm_factor=2 generates 1x and 2x for each size.
+    // Matches the $multipliers argument of srcset(). Range: 1–5.
+    'warm_factor' => 1,
+
+    // Output format for warmed thumbnails.
+    'warm_format' => 'webp',
+
     // Use relative URLs (e.g., /storage/...) instead of absolute URLs (e.g., http://localhost:8000/storage/...)
     // This prevents issues with APP_URL in .env and makes URLs work across different environments
     // Set to true to enable this feature (disabled by default for backward compatibility)
