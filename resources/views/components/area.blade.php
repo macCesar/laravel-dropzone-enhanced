@@ -43,10 +43,11 @@
       cursor: pointer;
       transition: all 0.3s ease;
       min-height: 180px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+    }
+
+    .dropzone .dz-preview {
+      display: inline-block;
+      vertical-align: top;
     }
 
     .dropzone:hover {

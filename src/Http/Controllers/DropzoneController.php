@@ -151,14 +151,28 @@ class DropzoneController extends Controller
       // Create photo record
       $photo = Photo::create($photoData);
 
-      // Warm (pre-generate) image sizes immediately at upload time
+      // Warm (pre-generate) image sizes immediately at upload time.
+      // Uses generateThumbnail() with exact dimensions so cached files
+      // match the paths that src()/srcset() will request in views.
+      // (srcset() recalculates height from the original aspect ratio,
+      //  producing slightly different dimensions than the ones views ask for.)
       $warmSizes  = json_decode($request->input('warm_sizes', '[]'), true);
       $warmFactor = max(1, (int) $request->input('warm_factor', 1));
       $warmFormat = $request->input('warm_format', 'webp');
 
       if (is_array($warmSizes) && $warmSizes !== []) {
         foreach ($warmSizes as $dim) {
-          $photo->srcset((string) $dim, $warmFactor, $warmFormat);
+          $parts = explode('x', (string) $dim);
+          if (count($parts) !== 2 || !ctype_digit($parts[0]) || !ctype_digit($parts[1])) {
+            continue;
+          }
+          $baseW = (int) $parts[0];
+          $baseH = (int) $parts[1];
+
+          for ($f = 1; $f <= $warmFactor; $f++) {
+            $scaledDim = ($baseW * $f) . 'x' . ($baseH * $f);
+            $photo->generateThumbnail($scaledDim, $warmFormat);
+          }
         }
       }
 

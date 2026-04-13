@@ -2,6 +2,18 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.7.1 - 2026-04-13
+
+### Fixed
+
+- **Upload-time warm generates exact dimensions** — The warm mechanism in `DropzoneController` was using `$photo->srcset()` which recalculates height from the original image's aspect ratio. This produced thumbnails at slightly different dimensions (e.g. `800x447` instead of `800x450`) than what views request via `src()`/`srcset()`, causing cache misses and slow on-demand regeneration on first page load. Now uses `$photo->generateThumbnail()` with the exact requested dimensions so cached files match view requests.
+
+### Changed
+
+- **Dropzone preview layout** — Preview thumbnails now display inline instead of stacking vertically, improving the upload UI when multiple files are queued.
+
+---
+
 ## 2.7.0 - 2026-03-01
 
 ### ⚠️ Breaking Change — Thumbnail Folder Structure
