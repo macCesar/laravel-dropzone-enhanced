@@ -2,6 +2,14 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## 2.7.2 - 2026-05-06
+
+### Fixed
+
+- **Install command registration crash** — Running `php artisan dropzone-enhanced:install` (or its alias `dropzoneenhanced:install`) threw `An option named "no-interaction" already exists.` because the command's `$signature` redeclared `--no-interaction`, which Laravel/Symfony Console already provides globally on every command. Removed the redundant declaration; `$this->option('no-interaction')` continues to work because the global option is auto-injected.
+
+---
+
 ## 2.7.1 - 2026-04-13
 
 ### Fixed
