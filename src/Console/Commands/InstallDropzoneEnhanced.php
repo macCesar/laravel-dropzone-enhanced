@@ -8,8 +8,10 @@ use Illuminate\Support\Facades\Schema;
 
 class InstallDropzoneEnhanced extends Command
 {
-  // New canonical command name (prefix without hyphen)
-  protected $signature = 'dropzoneenhanced:install {--no-interaction : Run without prompts}';
+  // New canonical command name (prefix without hyphen).
+  // --no-interaction is provided globally by Laravel/Symfony Console; declaring it here
+  // again throws "An option named 'no-interaction' already exists." at registration time.
+  protected $signature = 'dropzoneenhanced:install';
 
   // Backward-compatible alias for previous command name
   protected $aliases = ['dropzone-enhanced:install'];
