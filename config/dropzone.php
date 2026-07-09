@@ -54,6 +54,23 @@ return [
 
   /*
   |--------------------------------------------------------------------------
+  | Upload Preview Thumbnails
+  |--------------------------------------------------------------------------
+  |
+  | Client-side Dropzone previews. The generated thumbnail is intentionally
+  | larger than the visible box so previews stay crisp on retina displays.
+  |
+  */
+  'previews' => [
+    'display_width' => 180,
+    'display_height' => 180,
+    'thumbnail_width' => 576,
+    'thumbnail_height' => 576,
+    'thumbnail_method' => 'crop',
+  ],
+
+  /*
+  |--------------------------------------------------------------------------
   | Storage
   |--------------------------------------------------------------------------
   |

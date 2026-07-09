@@ -16,6 +16,11 @@
 @php
   $containerId = 'dropzone-container-' . ($locale ?? 'default');
   $uploadId = 'dropzone-upload-' . ($locale ?? 'default');
+  $previewDisplayWidth = (int) config('dropzone.previews.display_width', 180);
+  $previewDisplayHeight = (int) config('dropzone.previews.display_height', 240);
+  $previewThumbnailWidth = (int) config('dropzone.previews.thumbnail_width', 576);
+  $previewThumbnailHeight = (int) config('dropzone.previews.thumbnail_height', 576);
+  $previewThumbnailMethod = config('dropzone.previews.thumbnail_method', 'contain');
 @endphp
 
 <div class="dropzone-container" data-dimensions="{{ $dimensions }}" data-directory="{{ $directory }}" data-model-id="{{ $model->id }}" data-model-type="{{ get_class($model) }}" data-pre-resize="{{ $preResize ? 'true' : 'false' }}" data-keep-original-name="{{ $keepOriginalName ? 'true' : 'false' }}" data-locale="{{ $locale ?? '' }}" data-max-files="{{ $maxFiles }}" data-max-filesize="{{ $maxFilesize }}" data-reload-on-success="{{ $reloadOnSuccess ? 'true' : 'false' }}" data-warm-sizes='@json($warmSizes)' data-warm-factor="{{ (int) $warmFactor }}" data-warm-format="{{ $warmFormat }}" id="{{ $containerId }}">
@@ -48,6 +53,25 @@
     .dropzone .dz-preview {
       display: inline-block;
       vertical-align: top;
+      width: {{ $previewDisplayWidth }}px;
+    }
+
+    .dropzone .dz-preview .dz-image {
+      width: {{ $previewDisplayWidth }}px;
+      height: {{ $previewDisplayHeight }}px;
+      border-radius: 8px;
+      background: #f8fafc;
+    }
+
+    .dropzone .dz-preview .dz-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .dropzone .dz-preview .dz-error-message {
+      top: {{ $previewDisplayHeight + 10 }}px;
+      left: {{ max(0, (int) (($previewDisplayWidth - 140) / 2)) }}px;
     }
 
     .dropzone:hover {
@@ -110,9 +134,9 @@
           headers: {
             'X-CSRF-TOKEN': '{{ csrf_token() }}'
           },
-          thumbnailWidth: 576,
-          thumbnailHeight: 576,
-          thumbnailMethod: "crop",
+          thumbnailWidth: {{ $previewThumbnailWidth }},
+          thumbnailHeight: {{ $previewThumbnailHeight }},
+          thumbnailMethod: @json($previewThumbnailMethod),
           createImageThumbnails: true,
           init: function() {
             const dropzone = this;
