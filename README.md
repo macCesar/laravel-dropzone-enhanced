@@ -17,7 +17,7 @@ A powerful and customizable Laravel package that enhances Dropzone.js to provide
 - **Smart URL Generation**: Automatic relative URL generation that works consistently across all environments (local, staging, production) without `.env` configuration hassles.
 - **Handy Helpers**: `src`/`srcset` helpers on models and photos (including raw storage paths) for quick, optimized URLs.
 - **Upload-time Image Warming**: Pre-generate all desired thumbnail sizes at upload time via `warmSizes`, `warmFactor`, and `warmFormat` props — no separate artisan warm commands needed for new uploads.
-- **Broad Compatibility**: Supports Laravel 8, 9, 10, 11, and 12.
+- **Broad Compatibility**: Supports Laravel 8, 9, 10, 11, 12, and 13.
 
 ## Requirements
 
@@ -921,7 +921,26 @@ You can now edit `config/dropzone.php` to change default image sizes, storage di
 
 ### Security & Authorization
 
-The package includes a comprehensive and robust authorization system for photo deletion to prevent unauthorized actions. It performs a series of checks for authenticated users (model ownership, `isAdmin` methods, Gates) and provides secure options for unauthenticated scenarios (session tokens, access keys).
+By default, Dropzone routes are registered behind Laravel's `web` and `auth` middleware:
+
+```php
+'routes' => [
+  'prefix' => '',
+  'middleware' => ['web', 'auth'],
+],
+```
+
+This protects upload and photo-management endpoints from unauthenticated access in new installations. If your application intentionally supports public uploads, opt in explicitly by publishing the config and changing the middleware back to `['web']`, then add your own session-token, signed-route, access-key, captcha, rate-limit, and ownership controls.
+
+For application-specific authorization, add your own middleware to the array:
+
+```php
+'routes' => [
+  'middleware' => ['web', 'auth', \App\Http\Middleware\AuthorizeDropzonePhotos::class],
+],
+```
+
+The package also includes a comprehensive authorization system for photo deletion to prevent unauthorized actions. It performs a series of checks for authenticated users (model ownership, `isAdmin` methods, Gates) and provides configurable options for explicit public/API scenarios (session tokens, access keys).
 
 For full details on customizing authorization logic, please refer to the extensive comments in the `config/dropzone.php` file and the source code of the `DropzoneController`.
 
@@ -1011,6 +1030,12 @@ class CustomDropzoneController extends DropzoneController
 Review your security settings in `config/dropzone.php`:
 
 ```php
+'routes' => [
+  // Default for new installations. Add your own policy/middleware here for
+  // model-specific rules, tenant checks, admin-panel permissions, etc.
+  'middleware' => ['web', 'auth'],
+],
+
 'security' => [
   // IMPORTANT: Keep this false in production
   'allow_all_authenticated_users' => false,
@@ -1070,10 +1095,10 @@ Implement proper limits to prevent abuse:
 Add rate limiting middleware to your routes:
 
 ```php
-// In routes/web.php or your RouteServiceProvider
-Route::middleware(['throttle:uploads'])->group(function () {
-  // Dropzone routes are automatically registered
-});
+// config/dropzone.php
+'routes' => [
+  'middleware' => ['web', 'auth', 'throttle:uploads'],
+],
 
 // In app/Http/Kernel.php
 protected $middlewareGroups = [

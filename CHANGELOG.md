@@ -2,6 +2,18 @@
 
 All notable changes to `laravel-dropzone-enhanced` will be documented in this file.
 
+## Unreleased
+
+### Changed
+
+- Changed the default Dropzone route middleware from `['web']` to `['web', 'auth']` so upload and photo-management routes require authentication in new installations.
+- Updated the internal route fallback middleware to `['web', 'auth']` when no published config value is present.
+- Documented how applications can opt into public uploads explicitly or add custom authorization middleware.
+
+### Security
+
+- Hardened default route protection for upload, delete, reorder, main-photo, locale-update, and status endpoints.
+
 ## 2.7.2 - 2026-05-06
 
 ### Fixed

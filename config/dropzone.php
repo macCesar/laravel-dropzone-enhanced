@@ -11,7 +11,7 @@ return [
   */
   'routes' => [
     'prefix' => '',
-    'middleware' => ['web'],
+    'middleware' => ['web', 'auth'],
   ],
 
   /*
