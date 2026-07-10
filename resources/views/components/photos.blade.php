@@ -155,30 +155,33 @@
     }
 
     .drag-handle {
-      opacity: 0.55;
       right: 5px;
       z-index: 10;
       bottom: 5px;
       width: 28px;
       height: 28px;
-      color: white;
+      color: #111827;
       cursor: grab;
       display: flex;
       position: absolute;
       border-radius: 4px;
       align-items: center;
       justify-content: center;
-      transition: opacity 0.2s;
-      background: rgba(0, 0, 0, 0.5);
+      transition: all 0.2s;
+      background: rgba(255, 255, 255, 0.82);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
     }
 
     .photo-item:hover .drag-handle {
-      opacity: 1;
+      background: #fff;
     }
 
     .drag-handle:hover {
       transform: scale(1.1);
-      background: rgba(0, 0, 0, 0.8);
+    }
+
+    .drag-handle:active {
+      cursor: grabbing;
     }
 
     .photo-item-ghost {

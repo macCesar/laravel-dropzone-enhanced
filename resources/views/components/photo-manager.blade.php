@@ -28,6 +28,10 @@
   // ran on DOMContentLoaded and hid the non-default sections — a visible flash.
   $activeFilter = $defaultLocaleKey !== '' ? $defaultLocaleKey : 'all';
 
+  // Stable per-record key so the user's chosen filter survives reloads. It can't
+  // be the managerId (that carries a uniqid and changes on every render).
+  $photoFilterStorageKey = 'dz-pm-filter:' . substr(md5(get_class($model) . ':' . $model->getKey()), 0, 16);
+
   $photosGrouped = $model->photosGroupedByLocale();
 
   $photosForLocale = function ($localeKey) use ($photosGrouped) {
@@ -47,7 +51,7 @@
   });
 @endphp
 
-<div class="dz-photo-manager" data-csrf="{{ csrf_token() }}" data-default-locale="{{ $defaultLocaleKey }}" data-locales='@json($localesForJs)' data-manager-id="{{ $managerId }}" id="{{ $managerId }}">
+<div class="dz-photo-manager" data-csrf="{{ csrf_token() }}" data-default-locale="{{ $defaultLocaleKey }}" data-storage-key="{{ $photoFilterStorageKey }}" data-locales='@json($localesForJs)' data-manager-id="{{ $managerId }}" id="{{ $managerId }}">
   <div class="dz-zones" role="list">
     @foreach ($normalizedLocales as $locale)
       @php
@@ -153,6 +157,27 @@
     </div>
   </div>
 </div>
+
+{{-- Per-instance, synchronous: apply the saved filter BEFORE the first paint so
+     a persisted choice (localStorage) doesn't flash in after the JS boots. Runs
+     right after this manager's markup; the shared behavior lives in @once below. --}}
+<script>
+  (function () {
+    var mgr = document.getElementById('{{ $managerId }}');
+    if (!mgr) return;
+    var stored = null;
+    try { stored = mgr.dataset.storageKey ? window.localStorage.getItem(mgr.dataset.storageKey) : null; } catch (e) {}
+    if (stored === null) return; // no saved choice → keep the server-rendered default
+    mgr.querySelectorAll('[data-dz-filter]').forEach(function (b) {
+      b.classList.toggle('is-active', b.dataset.dzFilter === stored);
+    });
+    mgr.querySelectorAll('[data-dz-section]').forEach(function (s) {
+      s.style.display = (stored === 'all' || s.dataset.dzSection === stored) ? '' : 'none';
+    });
+    var tip = mgr.querySelector('[data-dz-tip]');
+    if (tip) tip.style.display = (stored === 'all') ? '' : 'none';
+  })();
+</script>
 
 @once
   <style>
@@ -423,25 +448,26 @@
     }
 
     .dz-drag-handle {
-      opacity: 0.55;
       right: 8px;
       z-index: 2;
       bottom: 8px;
       width: 28px;
       height: 28px;
-      color: #fff;
+      color: #111827;
       cursor: grab;
       display: flex;
       position: absolute;
       border-radius: 6px;
       align-items: center;
       justify-content: center;
-      transition: opacity 0.2s;
-      background: rgba(15, 23, 42, 0.65);
+      transition: all 0.2s;
+      background: rgba(255, 255, 255, 0.82);
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.3);
     }
 
     .dz-photo-item:hover .dz-drag-handle {
-      opacity: 1;
+      background: #fff;
+      transform: scale(1.05);
     }
 
     .dz-drag-handle:active {
@@ -581,12 +607,17 @@
         }
       };
 
-      const defaultFilter = manager.dataset.defaultLocale || 'all';
-      setFilter(defaultFilter === '' ? '' : defaultFilter);
+      let storedFilter = null;
+      try { storedFilter = localStorage.getItem(manager.dataset.storageKey); } catch (e) {}
+      const defaultFilter = storedFilter || manager.dataset.defaultLocale || 'all';
+      setFilter(defaultFilter);
 
       filterButtons.forEach(button => {
         button.addEventListener('click', function() {
           setFilter(button.dataset.dzFilter);
+          // Persist the choice so it survives reloads (applied pre-paint by the
+          // per-instance script next to the markup).
+          try { localStorage.setItem(manager.dataset.storageKey, button.dataset.dzFilter); } catch (e) {}
         });
       });
 
