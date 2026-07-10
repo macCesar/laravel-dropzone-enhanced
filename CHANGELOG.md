@@ -4,6 +4,12 @@ All notable changes to `laravel-dropzone-enhanced` will be documented in this fi
 
 ## Unreleased
 
+## 2.8.1 - 2026-07-10
+
+### Changed
+
+- Monochromatized the component UI accents so the package blends into neutral/gray admin themes. The drop-area hover border, the "main photo" highlight (border + active "set as main" button), and the multilingual manager's active filter pill, info tip box, and per-locale section tints changed from blue/purple (`#0d6efd`, `#2563eb`, `#eff6ff`, `#f5f3ff`, …) to neutral grays. Semantic colors (red for delete/error) are unchanged. The internal `dz-locale-{blue,purple,gray}` class names are kept for compatibility but now render as gray tones — locales stay distinguishable by their badge/label and a subtle gray tint.
+
 ## 2.8.0 - 2026-07-10
 
 ### Added
