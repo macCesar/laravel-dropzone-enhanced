@@ -4,6 +4,16 @@ All notable changes to `laravel-dropzone-enhanced` will be documented in this fi
 
 ## Unreleased
 
+## 2.9.0 - 2026-07-10
+
+### Added
+
+- The multilingual photo-manager now remembers the selected locale filter across page reloads (per record, in `localStorage`). The choice is applied before the first paint by a small per-instance script, so a persisted filter never flashes in after the JS boots.
+
+### Changed
+
+- Reworked the photo drag handle for contrast over any image. The previous handle used a dark translucent background that disappeared over dark photos; it now matches the action buttons — a light translucent background (`rgba(255,255,255,0.82)`) with a dark icon and a drop shadow, going solid white on hover — so it stays legible over both light and dark images. Applied in both the `photos` gallery and the multilingual `photo-manager`.
+
 ## 2.8.2 - 2026-07-10
 
 ### Fixed
