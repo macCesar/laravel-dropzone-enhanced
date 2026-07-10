@@ -90,7 +90,7 @@
     }
 
     .photo-item.is-main {
-      border: 2px solid #0d6efd;
+      border: 2px solid #374151;
     }
 
     .photo-thumb {
@@ -136,7 +136,7 @@
     }
 
     .photo-action.photo-action-main.active {
-      background: #0d6efd;
+      background: #374151;
       color: white;
     }
 

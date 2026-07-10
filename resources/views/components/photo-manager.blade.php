@@ -258,7 +258,7 @@
     }
 
     .dz-filter-pill.is-active {
-      background: #2563eb;
+      background: #374151;
       color: #fff;
     }
 
@@ -278,9 +278,9 @@
       margin-top: 16px;
       padding: 12px 14px;
       border-radius: 10px;
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      color: #1e3a8a;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      color: #374151;
     }
 
     .dz-tip-title {
@@ -315,13 +315,13 @@
     }
 
     .dz-gallery-section[data-dz-section="es"] {
-      background: #eff6ff;
-      border-color: #dbeafe;
+      background: #f9fafb;
+      border-color: #e5e7eb;
     }
 
     .dz-gallery-section[data-dz-section="en"] {
-      background: #f5f3ff;
-      border-color: #ede9fe;
+      background: #f3f4f6;
+      border-color: #e5e7eb;
     }
 
     .dz-photo-grid {
@@ -407,7 +407,7 @@
     }
 
     .dz-photo-action.dz-photo-action-main.active {
-      background: #2563eb;
+      background: #374151;
       color: #fff;
     }
 
@@ -439,7 +439,7 @@
     }
 
     .dz-photo-item.is-main {
-      border: 2px solid #2563eb;
+      border: 2px solid #374151;
     }
 
     .dz-photo-item-ghost {
@@ -454,7 +454,7 @@
 
     .dz-photo-grid[data-empty="true"] {
       border-radius: 8px;
-      border: 1px dashed #cbd5f5;
+      border: 1px dashed #d1d5db;
       background: rgba(0, 0, 0, 0.04);
       position: relative;
     }
@@ -477,11 +477,11 @@
     }
 
     .dz-locale-blue {
-      background: #eff6ff;
+      background: #f9fafb;
     }
 
     .dz-locale-purple {
-      background: #f5f3ff;
+      background: #f3f4f6;
     }
 
     @media (max-width: 900px) {

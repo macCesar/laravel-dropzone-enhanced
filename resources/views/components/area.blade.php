@@ -75,7 +75,7 @@
     }
 
     .dropzone:hover {
-      border-color: #0d6efd;
+      border-color: #6b7280;
       background: #f5f5f5;
     }
 
