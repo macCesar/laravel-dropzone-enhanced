@@ -4,6 +4,13 @@ All notable changes to `laravel-dropzone-enhanced` will be documented in this fi
 
 ## Unreleased
 
+## 2.8.2 - 2026-07-10
+
+### Fixed
+
+- Eliminated the gallery filter "flash" on page load in the multilingual photo manager. The markup rendered the `all` filter active with every locale section visible, then the JS applied the default-locale filter on `DOMContentLoaded` — after the first paint — so non-default sections appeared and then vanished. The initial filter state (active pill, hidden non-matching sections, hidden tip) is now rendered server-side from `defaultLocale`, matching what the JS applies, so the first paint is already correct.
+- Made the photo drag handle discoverable. It was fully transparent (`opacity: 0`) until you hovered the exact photo, so it was impossible to tell that reordering / moving between locales is driven by the handle (dragging the image itself just starts a native image drag and does nothing). The handle now sits at `opacity: 0.55` at rest and `1` on hover, in both the `photos` gallery and the multilingual `photo-manager`.
+
 ## 2.8.1 - 2026-07-10
 
 ### Changed
