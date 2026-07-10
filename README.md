@@ -382,6 +382,22 @@ By default, thumbnails are generated **on demand** the first time a view calls `
 
 **Performance**: generation is synchronous within the upload request. For 3–5 sizes × factor 2–3 (6–15 thumbnails) the added time is typically < 3 seconds — an acceptable trade-off versus slow first-render on-demand generation. If you need truly async warming, dispatch a queued job in your model observer after upload.
 
+### Upload Preview Thumbnails
+
+The client-side previews Dropzone shows while files are queued are configurable via the `previews` block in `config/dropzone.php`:
+
+```php
+'previews' => [
+    'display_width'    => 180,   // preview box width in px
+    'display_height'   => 180,   // preview box height in px
+    'thumbnail_width'  => 576,   // generated thumbnail width (larger than the box for crisp retina previews)
+    'thumbnail_height' => 576,   // generated thumbnail height
+    'thumbnail_method' => 'crop', // 'crop' or 'contain'
+],
+```
+
+The generated thumbnail is intentionally larger than the visible box so previews stay sharp on high-density displays.
+
 ---
 
 ### Gallery: `<x-dropzone-enhanced::photos />`

@@ -4,6 +4,12 @@ All notable changes to `laravel-dropzone-enhanced` will be documented in this fi
 
 ## Unreleased
 
+## 2.8.0 - 2026-07-10
+
+### Added
+
+- Configurable Dropzone upload previews via a new `previews` config block (`display_width`, `display_height`, `thumbnail_width`, `thumbnail_height`, `thumbnail_method`) to control the preview box size and thumbnail rendering.
+
 ### Changed
 
 - Changed the default Dropzone route middleware from `['web']` to `['web', 'auth']` so upload and photo-management routes require authentication in new installations.
