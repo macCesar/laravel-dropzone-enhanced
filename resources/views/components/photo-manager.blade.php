@@ -22,6 +22,12 @@
 
   $defaultLocaleKey = $defaultLocale !== null ? (string) $defaultLocale : 'all';
 
+  // Server-side mirror of the JS `manager.dataset.defaultLocale || 'all'`, so the
+  // gallery's first paint already shows the default filter's state. Without this
+  // the markup rendered "all" active + every section visible, then the JS filter
+  // ran on DOMContentLoaded and hid the non-default sections — a visible flash.
+  $activeFilter = $defaultLocaleKey !== '' ? $defaultLocaleKey : 'all';
+
   $photosGrouped = $model->photosGroupedByLocale();
 
   $photosForLocale = function ($localeKey) use ($photosGrouped) {
@@ -65,7 +71,7 @@
     <div class="dz-gallery-header">
       <div class="dz-gallery-title">{{ __('dropzone-enhanced::messages.photo_manager.manage_photos') }}</div>
       <div aria-label="{{ __('dropzone-enhanced::messages.photo_manager.filters') }}" class="dz-filter-pills" role="tablist">
-        <button class="dz-filter-pill is-active" data-dz-filter="all" type="button">
+        <button class="dz-filter-pill {{ $activeFilter === 'all' ? 'is-active' : '' }}" data-dz-filter="all" type="button">
           {{ __('dropzone-enhanced::messages.photo_manager.filter_all') }}
           <span class="dz-filter-count" data-dz-count="all">{{ $model->photos->count() }}</span>
         </button>
@@ -73,7 +79,7 @@
           @php
             $localePhotos = $photosForLocale($locale['key']);
           @endphp
-          <button class="dz-filter-pill" data-dz-filter="{{ $locale['key_for_data'] }}" type="button">
+          <button class="dz-filter-pill {{ $activeFilter === $locale['key_for_data'] ? 'is-active' : '' }}" data-dz-filter="{{ $locale['key_for_data'] }}" type="button">
             <span>{{ $locale['label'] }}</span>
             <span class="dz-filter-count" data-dz-count="{{ $locale['key_for_data'] }}">{{ $localePhotos->count() }}</span>
           </button>
@@ -81,7 +87,7 @@
       </div>
     </div>
 
-    <div class="dz-gallery-tip" data-dz-tip>
+    <div class="dz-gallery-tip" data-dz-tip @if ($activeFilter !== 'all') style="display: none;" @endif>
       <div class="dz-tip-title">{{ __('dropzone-enhanced::messages.photo_manager.tip_title') }}</div>
       <div class="dz-tip-body">{{ __('dropzone-enhanced::messages.photo_manager.tip_body') }}</div>
     </div>
@@ -91,7 +97,7 @@
         @php
           $localePhotos = $photosForLocale($locale['key']);
         @endphp
-        <section class="dz-gallery-section" data-dz-section="{{ $locale['key_for_data'] }}">
+        <section class="dz-gallery-section" data-dz-section="{{ $locale['key_for_data'] }}" @if ($activeFilter !== 'all' && $activeFilter !== $locale['key_for_data']) style="display: none;" @endif>
           <div class="dz-gallery-section-header">
             <span class="dz-section-label">{{ $locale['label'] }}</span>
             <span class="dz-count-pill" data-dz-count="{{ $locale['key_for_data'] }}">{{ $localePhotos->count() }}</span>
@@ -417,7 +423,7 @@
     }
 
     .dz-drag-handle {
-      opacity: 0;
+      opacity: 0.55;
       right: 8px;
       z-index: 2;
       bottom: 8px;
@@ -436,6 +442,10 @@
 
     .dz-photo-item:hover .dz-drag-handle {
       opacity: 1;
+    }
+
+    .dz-drag-handle:active {
+      cursor: grabbing;
     }
 
     .dz-photo-item.is-main {

@@ -155,7 +155,7 @@
     }
 
     .drag-handle {
-      opacity: 0;
+      opacity: 0.55;
       right: 5px;
       z-index: 10;
       bottom: 5px;
