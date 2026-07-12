@@ -9,6 +9,6 @@ class RouteMiddlewareTest extends TestCase
     $route = $this->app['router']->getRoutes()->getByName('dropzone.upload');
 
     $this->assertNotNull($route);
-    $this->assertSame(['web', 'auth'], $route->gatherMiddleware());
+    $this->assertSame(['web', 'auth', 'throttle:60,1', 'signed'], $route->gatherMiddleware());
   }
 }
