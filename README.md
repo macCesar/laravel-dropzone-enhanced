@@ -16,15 +16,15 @@ A powerful and customizable Laravel package that enhances Dropzone.js to provide
 - **Highly Customizable**: Configure everything from image dimensions and quality to storage disks and route middleware.
 - **Smart URL Generation**: Automatic relative URL generation that works consistently across all environments (local, staging, production) without `.env` configuration hassles.
 - **Handy Helpers**: `src`/`srcset` helpers on models and photos (including raw storage paths) for quick, optimized URLs.
-- **Upload-time Image Warming**: Pre-generate all desired thumbnail sizes at upload time via `warmSizes`, `warmFactor`, and `warmFormat` props — no separate artisan warm commands needed for new uploads.
-- **Broad Compatibility**: Supports Laravel 8, 9, 10, 11, 12, and 13.
+- **Upload-time Image Warming**: Pre-generate server-configured thumbnail sizes for new uploads.
+- **Supported Versions**: Supports Laravel 12 and 13.
 
 ## Requirements
 
-- PHP 7.4 or higher
-- Laravel 8.0 or higher
+- PHP 8.2 or higher
+- Laravel 12 or 13
 - **ext-exif** (for automatic image orientation correction)
-- ext-gd (for image processing)
+- **ext-gd** (for image processing)
 
 ## Installation
 
@@ -58,6 +58,72 @@ Ensure your public storage disk is linked so images are accessible.
 ```bash
 php artisan storage:link
 ```
+
+**5. Configure authorization**
+
+The component places the Eloquent model class, ID, directory, and locale in a
+signed upload URL. No model registry is required, and modifying any of those
+values invalidates the request.
+
+For private uploads and photo management, define the Gate in your application's
+authorization provider. Those operations are denied when the Gate is absent or
+returns `false`:
+
+```php
+use Illuminate\Support\Facades\Gate;
+use MacCesar\LaravelDropzoneEnhanced\Models\Photo;
+
+Gate::define('dropzone.manage-photos', function (
+  $user,
+  string $action,
+  $model,
+  ?Photo $photo = null
+): bool {
+  return $model->user_id === $user->id;
+});
+```
+
+The action is one of `upload`, `delete`, `set-main`, `view-main-status`,
+`reorder`, or `update-locale`.
+
+#### Public upload forms
+
+Visitors can upload without registering when the application opts in explicitly:
+
+```php
+'routes' => [
+  'middleware' => ['web', 'throttle:20,1'],
+],
+
+'security' => [
+  'allow_public_uploads' => true,
+],
+```
+
+The component still creates a signed URL containing the server-selected model,
+directory, and locale. Visitors cannot alter that context. MIME, size, pixel,
+file-count, and warm-thumbnail limits remain active, and `user_id` is stored as
+`null`. This option bypasses the Gate only for `upload`; delete, reorder, main-photo,
+status, and locale operations remain denied without authorization.
+
+### Upgrading from 2.x
+
+This is a security-focused major upgrade:
+
+1. Upgrade the host application to PHP 8.2+ and Laravel 12 or 13.
+2. Merge the new `routes` and `security` keys into the published config.
+3. Define the authorization Gate, or explicitly enable `allow_public_uploads`
+   for upload-only public forms.
+4. Remove `warmSizes`, `warmFactor`, and `warmFormat` component props; configure
+   their snake-case equivalents under `images` instead.
+5. Keep throttle protection when removing `auth` for a public upload form. The
+   package always applies `signed` directly to its upload route.
+6. If uploader IDs are UUIDs/ULIDs or use a custom users table, configure the
+   `database` section before running the package migration.
+
+The previous access-key, public-delete, convention-based ownership, and arbitrary
+model-class behaviors have been removed. Management requests now require an
+explicit Gate decision; public upload is a separate opt-in.
 
 ## EXIF Orientation Support
 
@@ -335,9 +401,6 @@ This component provides the file upload interface.
 | `reloadOnSuccess`  | `bool`     | If `true`, the page will automatically reload after all uploads are successfully completed.         | `false`                                        |
 | `keepOriginalName` | `bool`     | If `true`, store files using the sanitized original filename (adds numeric suffix on collisions).   | `false`                                        |
 | `locale`           | `string`   | Assign uploaded photos to a locale (requires multilingual enabled).                                 | `null`                                         |
-| `warmSizes`        | `string[]` | Array of dimension strings to pre-generate immediately at upload time (e.g. `['462', '1200x675']`). | `config('dropzone.images.warm_sizes')`         |
-| `warmFactor`       | `int`      | Multiplier for warm generation: `2` = 1× + 2× per size. Range: 1–5.                                 | `config('dropzone.images.warm_factor')`        |
-| `warmFormat`       | `string`   | Output format for warmed thumbnails: `webp`, `jpg`, or `png`.                                       | `config('dropzone.images.warm_format')`        |
 
 Example: keep original filenames in a custom directory
 ```blade
@@ -350,22 +413,7 @@ Example: keep original filenames in a custom directory
 
 ### Upload-time Image Warming
 
-By default, thumbnails are generated **on demand** the first time a view calls `$photo->src('462', 'webp')`. This causes a brief delay on first render. The `warmSizes`, `warmFactor`, and `warmFormat` props instruct the component to pre-generate all desired sizes **immediately at upload time**, so images load instantly from the very first request.
-
-```blade
-<x-dropzone-enhanced::area
-  :model="$post"
-  directory="blog/{{ $post->id }}"
-  :warmSizes="['1200x675', '800x450', '416x234', '80x80']"
-  :warmFactor="2"
-  warmFormat="webp"
-/>
-{{-- Generates 8 thumbnails synchronously:
-     1200x675@1x, 2400x1350@2x
-     800x450@1x,  1600x900@2x
-     416x234@1x,  832x468@2x
-     80x80@1x,    160x160@2x  --}}
-```
+By default, thumbnails are generated **on demand** the first time a view calls `$photo->src('462', 'webp')`. Configure warm sizes on the server to generate them immediately after upload. Request data and component props cannot override these limits.
 
 **Dimension syntax** — identical to `src()` / `srcset()`:
 - Width-only (`'462'`) → height inferred from original aspect ratio
@@ -374,9 +422,16 @@ By default, thumbnails are generated **on demand** the first time a view calls `
 **Setting app-wide defaults** in `config/dropzone.php`:
 ```php
 'images' => [
-    'warm_sizes'  => ['462', '96'],    // generated for every upload
+    'warm_sizes'  => ['462', '96'],
     'warm_factor' => 2,
     'warm_format' => 'webp',
+],
+
+'security' => [
+    'max_warm_sizes' => 10,
+    'max_width' => 12000,
+    'max_height' => 12000,
+    'max_pixels' => 40000000,
 ],
 ```
 
@@ -501,70 +556,10 @@ Notes:
 
 #### Custom Upload Controller
 
-Create a custom controller to extend the package's functionality:
-
-```php
-<?php
-
-namespace App\Http\Controllers;
-
-use Illuminate\Http\Request;
-use MacCesar\LaravelDropzoneEnhanced\Http\Controllers\DropzoneController;
-use MacCesar\LaravelDropzoneEnhanced\Models\Photo;
-
-class CustomDropzoneController extends DropzoneController
-{
-  public function upload(Request $request)
-  {
-    // Add custom validation rules
-    $request->validate([
-      'file' => 'required|image|mimes:jpeg,png,webp|dimensions:min_width=800,min_height=600',
-      'directory' => 'required|string',
-      'model_id' => 'required|integer',
-      'model_type' => 'required|string',
-    ]);
-
-    // Custom processing before upload
-    $file = $request->file('file');
-
-    // Add watermark, custom processing, etc.
-    $this->processImageBeforeUpload($file);
-
-    // Call parent upload method
-    return parent::upload($request);
-  }
-
-  private function processImageBeforeUpload($file)
-  {
-    // Your custom image processing logic here
-    // Example: Add watermark, EXIF data removal, etc.
-  }
-
-  protected function userCanDeletePhoto(Request $request, Photo $photo, $model)
-  {
-    // Add custom authorization logic
-    if ($model instanceof \App\Models\Product) {
-      // Check if user owns the product's company
-      if ($model->company_id !== auth()->user()->company_id) {
-        return false;
-      }
-    }
-
-    // Call parent method for default checks
-    return parent::userCanDeletePhoto($request, $photo, $model);
-  }
-}
-```
-
-Then register your custom controller in your routes:
-
-```php
-// In routes/web.php
-use App\Http\Controllers\CustomDropzoneController;
-
-Route::post('dropzone/upload', [CustomDropzoneController::class, 'upload']);
-Route::delete('dropzone/photos/{id}', [CustomDropzoneController::class, 'destroy']);
-```
+The bundled upload route requires its signed model/directory context. Replacing it
+with an unsigned custom route removes that protection. Prefer model observers or a
+separate image-processing service after upload. If a custom controller is required,
+preserve `signed`, `web`, throttle, and the selected private/public authorization mode.
 
 #### Multiple Upload Areas for Different Photo Types
 
@@ -937,28 +932,19 @@ You can now edit `config/dropzone.php` to change default image sizes, storage di
 
 ### Security & Authorization
 
-By default, Dropzone routes are registered behind Laravel's `web` and `auth` middleware:
+By default, Dropzone routes are registered behind authentication, CSRF protection,
+rate limiting, a signed upload URL, and the configured authorization Gate:
 
 ```php
 'routes' => [
   'prefix' => '',
-  'middleware' => ['web', 'auth'],
+  'middleware' => ['web', 'auth', 'throttle:60,1'],
 ],
 ```
 
-This protects upload and photo-management endpoints from unauthenticated access in new installations. If your application intentionally supports public uploads, opt in explicitly by publishing the config and changing the middleware back to `['web']`, then add your own session-token, signed-route, access-key, captcha, rate-limit, and ownership controls.
-
-For application-specific authorization, add your own middleware to the array:
-
-```php
-'routes' => [
-  'middleware' => ['web', 'auth', \App\Http\Middleware\AuthorizeDropzonePhotos::class],
-],
-```
-
-The package also includes a comprehensive authorization system for photo deletion to prevent unauthorized actions. It performs a series of checks for authenticated users (model ownership, `isAdmin` methods, Gates) and provides configurable options for explicit public/API scenarios (session tokens, access keys).
-
-For full details on customizing authorization logic, please refer to the extensive comments in the `config/dropzone.php` file and the source code of the `DropzoneController`.
+Public uploads require the explicit `security.allow_public_uploads` opt-in shown in
+the installation section. In that mode, remove `auth` from the route middleware but
+keep `web` and throttle. Only upload bypasses the Gate; management stays protected.
 
 ## Security Best Practices
 
@@ -968,7 +954,7 @@ Always validate file types both on the client and server side:
 
 ```php
 // Server-side validation (automatically handled by the package)
-// The DropzoneController validates with: 'file' => 'required|file|image|max:' . config('dropzone.images.max_filesize')
+// The controller verifies the server-detected MIME type and maps it to a safe extension.
 
 // For custom validation, extend the controller:
 class CustomDropzoneController extends DropzoneController
@@ -976,10 +962,7 @@ class CustomDropzoneController extends DropzoneController
   public function upload(Request $request)
   {
     $request->validate([
-      'directory' => 'required|string',
-      'model_id' => 'required|integer',
-      'model_type' => 'required|string',
-      'file' => 'required|image|mimes:jpeg,png,webp|max:5120', // 5MB max
+      'file' => 'required|file|max:5120',
     ]);
 
     return parent::upload($request);
@@ -1013,32 +996,13 @@ Organize uploads in a secure directory structure to prevent unauthorized access:
 
 ### User Authorization
 
-The package provides multiple authorization layers. The `userCanDeletePhoto()` method checks:
-
-1. **Photo ownership**: `$photo->user_id === auth()->id()`
-2. **Model ownership**: `$model->user_id === auth()->id()`
-3. **User relationship**: `$model->user() && $model->user->id === auth()->id()`
-4. **Custom ownership**: `$model->isOwnedBy(auth()->user())`
-5. **Admin check**: `auth()->user()->isAdmin()`
-6. **Laravel Gates**: `auth()->can('delete-photos')`
-7. **Spatie Permissions**: `auth()->user()->hasPermissionTo('delete photos')`
-
-To customize authorization, extend the controller:
+Private uploads and all management operations use one Gate. Keep authorization
+rules in the host application rather than extending the package controller:
 
 ```php
-class CustomDropzoneController extends DropzoneController
-{
-  protected function userCanDeletePhoto(Request $request, Photo $photo, $model)
-  {
-    // Add your custom authorization logic
-    if ($model instanceof Product && $model->company_id !== auth()->user()->company_id) {
-      return false;
-    }
-
-    // Call parent method for default checks
-    return parent::userCanDeletePhoto($request, $photo, $model);
-  }
-}
+Gate::define('dropzone.manage-photos', function ($user, $action, $model, $photo = null) {
+  return $model->user_id === $user->id;
+});
 ```
 
 ### Configuration Security
@@ -1049,15 +1013,21 @@ Review your security settings in `config/dropzone.php`:
 'routes' => [
   // Default for new installations. Add your own policy/middleware here for
   // model-specific rules, tenant checks, admin-panel permissions, etc.
-  'middleware' => ['web', 'auth'],
+  'middleware' => ['web', 'auth', 'throttle:60,1'],
 ],
 
 'security' => [
-  // IMPORTANT: Keep this false in production
-  'allow_all_authenticated_users' => false,
+  'allow_public_uploads' => false,
+  'authorization_ability' => 'dropzone.manage-photos',
+  'max_width' => 12000,
+  'max_height' => 12000,
+  'max_pixels' => 40000000,
+],
 
-  // Set a strong access key for API requests
-  'access_key' => env('DROPZONE_ACCESS_KEY', null),
+'database' => [
+  'user_id_type' => 'bigint', // bigint, uuid, or ulid
+  'users_table' => null,      // set to 'users' to create a FK
+  'users_key' => 'id',
 ],
 
 'images' => [
@@ -1517,93 +1487,12 @@ class Product extends Model implements HasMedia
 }
 ```
 
-### With Laravel Sanctum API
+### API integrations
 
-Create API endpoints for mobile or SPA applications:
-
-```php
-// routes/api.php
-use App\Http\Controllers\Api\DropzoneApiController;
-
-Route::middleware('auth:sanctum')->group(function () {
-  Route::post('photos/upload', [DropzoneApiController::class, 'upload']);
-  Route::delete('photos/{photo}', [DropzoneApiController::class, 'destroy']);
-  Route::post('photos/{photo}/main', [DropzoneApiController::class, 'setMain']);
-  Route::post('photos/reorder', [DropzoneApiController::class, 'reorder']);
-});
-```
-
-API Controller:
-
-```php
-<?php
-
-namespace App\Http\Controllers\Api;
-
-use Illuminate\Http\Request;
-use App\Http\Controllers\Controller;
-use MacCesar\LaravelDropzoneEnhanced\Http\Controllers\DropzoneController;
-use MacCesar\LaravelDropzoneEnhanced\Models\Photo;
-
-class DropzoneApiController extends DropzoneController
-{
-  public function upload(Request $request)
-  {
-    try {
-      $response = parent::upload($request);
-      $data = $response->getData();
-
-      if ($data->success) {
-        return response()->json([
-          'success' => true,
-          'photo' => [
-            'id' => $data->photo->id,
-            'url' => $data->photo->getUrl(),
-            'thumbnail' => $data->photo->getThumbnailUrl(),
-            'filename' => $data->photo->original_filename,
-            'size' => $data->photo->size,
-            'is_main' => $data->photo->is_main,
-          ]
-        ]);
-      }
-
-      return $response;
-    } catch (\Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => 'Upload failed',
-        'error' => $e->getMessage()
-      ], 422);
-    }
-  }
-
-  public function destroy(Photo $photo)
-  {
-    try {
-      // Use the package's authorization logic
-      if (!$this->userCanDeletePhoto(request(), $photo, $photo->photoable)) {
-        return response()->json([
-          'success' => false,
-          'message' => 'Unauthorized'
-        ], 403);
-      }
-
-      $success = $photo->deletePhoto();
-
-      return response()->json([
-        'success' => $success,
-        'message' => $success ? 'Photo deleted successfully' : 'Failed to delete photo'
-      ]);
-    } catch (\Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => 'Delete failed',
-        'error' => $e->getMessage()
-      ], 500);
-    }
-  }
-}
-```
+The bundled endpoints are session-based web routes and upload through signed URLs.
+For Sanctum, mobile clients, or third-party APIs, create a separate controller with
+token-specific authorization and issue a server-controlled upload context. Do not
+reuse the web controller through unsigned API routes.
 
 ### With Inertia.js and Vue
 
@@ -2223,8 +2112,6 @@ foreach ($contents as $content) {
 
 - ✅ Existing photos work unchanged (`locale = null`)
 - ✅ Disabled by default (`multilingual.enabled = false`)
-- ✅ No breaking changes to existing API
-- ✅ All existing code continues working
 - ✅ Opt-in per component with `locale` prop
 
 ### Performance Considerations
@@ -2255,7 +2142,7 @@ $photo->update(['locale' => 'es']);
 ```
 
 **Q: What languages/locales can I use?**
-A: Any string you want! Pass any locale code (`'es'`, `'en'`, `'fr'`, `'en-US'`, etc.) - there are no restrictions.
+A: Locale codes up to 10 characters (`'es'`, `'en'`, `'fr'`, `'en-US'`, etc.).
 
 ## Development & Contributing
 
@@ -2264,8 +2151,8 @@ A: Any string you want! Pass any locale code (`'es'`, `'en'`, `'fr'`, `'en-US'`,
 This package uses NPM to manage Dropzone.js assets. For contributors:
 
 Asset workflow (maintainers only):
-- Script: `scripts/build-assets.js` copies from `node_modules/dropzone/dist/` to `resources/assets/`.
-- Files: `dropzone-min.js`, `dropzone-min.js.map`, `dropzone.css`, `dropzone.css.map`.
+- Script: `scripts/build-assets.js` copies Dropzone and SortableJS from `node_modules/` to `resources/assets/`.
+- Files: `dropzone-min.js`, `dropzone-min.js.map`, `dropzone.css`, `dropzone.css.map`, `Sortable.min.js`.
 - Publish: `php artisan vendor:publish --tag=dropzoneenhanced-assets` (alias: `dropzone-enhanced-assets`).
 - Consumers don’t need NPM; maintainers run these when updating Dropzone.
 

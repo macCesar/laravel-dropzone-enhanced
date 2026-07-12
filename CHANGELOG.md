@@ -4,6 +4,29 @@ All notable changes to `laravel-dropzone-enhanced` will be documented in this fi
 
 ## Unreleased
 
+## 3.0.0 - 2026-07-12
+
+### Security
+
+- Require a configurable Laravel Gate for private uploads and every photo-management operation; authorization now fails closed.
+- Preserve public upload forms through an explicit `allow_public_uploads` opt-out that bypasses the Gate only for signed, rate-limited uploads.
+- Sign the model class, ID, directory, and locale in each upload context; no model registry is required.
+- Derive stored extensions from the detected MIME type, enforce server-side file counts and image limits, and roll back storage/database writes after failures.
+- Add default rate limiting and remove permissive public/access-key deletion fallbacks.
+
+### Changed
+
+- Require PHP 8.2, Laravel 12 or 13, `ext-exif`, and `ext-gd`.
+- Make the uploader ID type and optional users-table foreign key configurable for bigint, UUID, and ULID applications.
+- Bundle SortableJS locally and fix the asset build paths so builds fail when a required source asset is missing.
+- Track every generated thumbnail URL cache key so custom variants are fully invalidated on deletion.
+- Warm thumbnail parameters are server-controlled through configuration rather than request data or component props.
+- Return generic internal-error responses without echoing exceptions or request payloads.
+
+### Tests
+
+- Add HTTP coverage for signed uploads, cross-user authorization, mixed-resource reorder attempts, safe extensions, server-side limits, and rollback cleanup.
+
 ## 2.9.0 - 2026-07-10
 
 ### Added
