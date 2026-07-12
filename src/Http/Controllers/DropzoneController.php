@@ -5,10 +5,15 @@ namespace MacCesar\LaravelDropzoneEnhanced\Http\Controllers;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use MacCesar\LaravelDropzoneEnhanced\Models\Photo;
 use MacCesar\LaravelDropzoneEnhanced\Services\ImageProcessor;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 class DropzoneController extends Controller
 {
@@ -20,50 +25,61 @@ class DropzoneController extends Controller
    */
   public function upload(Request $request)
   {
+    $validated = $request->validate([
+      'model_type' => ['required', 'string', 'max:255'],
+      'model_id' => ['required', 'integer'],
+      'directory' => ['required', 'string', 'max:255', 'regex:/^(?![\\/])(?!.*(?:^|[\\/])\.\.?(?:[\\/]|$))[A-Za-z0-9._\-\\/]+$/'],
+      'locale' => ['nullable', 'string', 'max:10'],
+      'keep_original_name' => ['nullable', 'boolean'],
+      'file' => [
+        'required',
+        'file',
+        'max:' . config('dropzone.images.max_filesize', 5000),
+      ],
+    ]);
+
+    $model = $this->resolveSignedModel($validated['model_type'], (int) $validated['model_id']);
+    $this->authorizeAction('upload', $model);
+
+    $directory = trim($validated['directory'], '/');
+    $locale = config('dropzone.multilingual.enabled') ? ($validated['locale'] ?? null) : null;
+    $this->ensurePhotoLimitNotExceeded($model, $locale);
+
+    $file = $request->file('file');
+    $disk = config('dropzone.storage.disk', 'public');
+    $mimeType = (string) $file->getMimeType();
+    $extension = $this->extensionForMimeType($mimeType);
+    $keepOriginalName = $request->boolean('keep_original_name', false);
+    $filename = $keepOriginalName
+      ? $this->generateUniqueFilename(
+        $directory,
+        Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'file',
+        $extension,
+        $disk
+      )
+      : Str::uuid() . '.' . $extension;
+    $fullPath = $directory . '/' . $filename;
+    $createdPaths = [];
+    $photo = null;
+
     try {
-      $rules = [
-        'directory' => 'required|string',
-        'model_id' => 'required|integer',
-        'model_type' => 'required|string',
-        'dimensions' => 'nullable|string',
-        'keep_original_name' => 'nullable|boolean',
-        'file' => 'required|file|image|max:' . config('dropzone.images.max_filesize', 5000),
-        'locale' => 'nullable|string|max:10',
-        'warm_sizes'  => ['nullable', 'string'],
-        'warm_factor' => ['nullable', 'integer', 'min:1', 'max:5'],
-        'warm_format' => ['nullable', 'string', 'in:webp,jpg,png'],
-      ];
-
-      $request->validate($rules);
-
-      // Get upload parameters
-      $file = $request->file('file');
-      $modelId = $request->input('model_id');
-      $directory = $request->input('directory');
-      $modelType = $request->input('model_type');
-      $disk = config('dropzone.storage.disk', 'public');
-      $dimensions = $request->input('dimensions', config('dropzone.images.default_dimensions'));
-      $keepOriginalName = $request->boolean('keep_original_name', false);
-
-      // Generate filename (UUID or sanitized original name)
-      $extension = $file->getClientOriginalExtension();
-      if ($keepOriginalName) {
-        $originalBaseName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-        $sanitizedBaseName = Str::slug($originalBaseName) ?: 'file';
-        $filename = $this->generateUniqueFilename($directory, $sanitizedBaseName, $extension, $disk);
-      } else {
-        $filename = Str::uuid() . '.' . $extension;
+      $storedPath = $file->storeAs($directory, $filename, $disk);
+      if ($storedPath === false) {
+        throw new \RuntimeException('The uploaded image could not be stored.');
       }
+      $createdPaths[] = $fullPath;
 
-      $fullPath = $directory . '/' . $filename;
-
-      // Upload file
-      $file->storeAs($directory, $filename, $disk);
+      $imageSize = getimagesize(Storage::disk($disk)->path($fullPath));
+      if ($imageSize === false) {
+        throw new \RuntimeException('The stored image could not be inspected.');
+      }
+      $this->assertImageDimensionsAllowed((int) $imageSize[0], (int) $imageSize[1]);
 
       // Apply EXIF orientation correction to original image
-      if (in_array($file->getMimeType(), ['image/jpeg', 'image/jpg']) && function_exists('exif_read_data')) {
+      if ($mimeType === 'image/jpeg' && function_exists('exif_read_data')) {
         $originalPath = Storage::disk($disk)->path($fullPath);
-        ImageProcessor::correctOriginalImageInPlace($originalPath, $file->getMimeType());
+        ImageProcessor::correctOriginalImageInPlace($originalPath, $mimeType);
+        $imageSize = getimagesize($originalPath) ?: $imageSize;
       }
 
       // Generate thumbnails if enabled in the configuration
@@ -79,7 +95,7 @@ class DropzoneController extends Controller
 
         // Generate thumbnail using native GD
         $thumbnailPath = $thumbnailDir . '/' . $filename;
-        [$thumbWidth, $thumbHeight] = explode('x', $thumbnailDimensions);
+        [$thumbWidth, $thumbHeight] = $this->validatedDimensions($thumbnailDimensions);
 
         $thumbnailGenerated = ImageProcessor::generateThumbnail(
           $fullPath,
@@ -93,15 +109,16 @@ class DropzoneController extends Controller
         );
 
         if (!$thumbnailGenerated) {
-          \Log::warning('Failed to generate thumbnail for: ' . $fullPath);
+          Log::warning('Dropzone thumbnail generation failed.', ['path' => $fullPath]);
+        } else {
+          $createdPaths[] = $thumbnailPath;
         }
       }
 
       // Get image dimensions and size
-      $imageSize = getimagesize($file->getRealPath());
       $width = $imageSize[0];
       $height = $imageSize[1];
-      $size = $file->getSize();
+      $size = Storage::disk($disk)->size($fullPath);
 
       // Prepare photo data
       $photoData = [
@@ -112,69 +129,43 @@ class DropzoneController extends Controller
         'filename' => $filename,
         'extension' => $extension,
         'directory' => $directory,
-        'photoable_id' => $modelId,
-        'photoable_type' => $modelType,
-        'mime_type' => $file->getMimeType(),
+        'photoable_id' => $model->getKey(),
+        'photoable_type' => $model->getMorphClass(),
+        'mime_type' => $mimeType,
         'original_filename' => $file->getClientOriginalName(),
       ];
 
       // Add locale if multilingual support is enabled and locale is provided
-      if (config('dropzone.multilingual.enabled') && $request->has('locale')) {
-        $photoData['locale'] = $request->input('locale');
+      if (config('dropzone.multilingual.enabled')) {
+        $photoData['locale'] = $locale;
       }
 
-      // Calculate sort_order within same locale
-      $sortOrderQuery = Photo::where('photoable_id', $modelId)
-        ->where('photoable_type', $modelType);
-
-      if (config('dropzone.multilingual.enabled') && isset($photoData['locale'])) {
-        $sortOrderQuery->where('locale', $photoData['locale']);
-      }
-
-      $photoData['sort_order'] = $sortOrderQuery->count() + 1;
-
-      // First photo in locale is main
-      $isMainQuery = clone $sortOrderQuery;
-      $photoData['is_main'] = $isMainQuery->count() == 0;
-
-      // Only add user_id if the column exists and auth is available (full compatibility)
+      // Keep compatibility with installations created before user tracking.
       if (Schema::hasColumn('photos', 'user_id')) {
-        try {
-          $userId = auth()->check() ? auth()->id() : null;
-          $photoData['user_id'] = $userId;
-        } catch (\Exception $e) {
-          // If auth fails (no guards, public site, etc.), just ignore user_id
-          // This ensures the package works in ANY environment
-        }
+        $photoData['user_id'] = $request->user()?->getAuthIdentifier();
       }
 
-      // Create photo record
-      $photo = Photo::create($photoData);
+      $photo = DB::transaction(function () use ($photoData, $model, $locale) {
+        $query = Photo::where('photoable_id', $model->getKey())
+          ->where('photoable_type', $model->getMorphClass())
+          ->when(
+            config('dropzone.multilingual.enabled'),
+            fn ($builder) => $locale === null ? $builder->whereNull('locale') : $builder->where('locale', $locale)
+          )
+          ->lockForUpdate();
 
-      // Warm (pre-generate) image sizes immediately at upload time.
-      // Uses generateThumbnail() with exact dimensions so cached files
-      // match the paths that src()/srcset() will request in views.
-      // (srcset() recalculates height from the original aspect ratio,
-      //  producing slightly different dimensions than the ones views ask for.)
-      $warmSizes  = json_decode($request->input('warm_sizes', '[]'), true);
-      $warmFactor = max(1, (int) $request->input('warm_factor', 1));
-      $warmFormat = $request->input('warm_format', 'webp');
+        abort_if(
+          (clone $query)->count() >= (int) config('dropzone.images.max_files', 10),
+          422,
+          'The maximum number of photos has been reached.'
+        );
+        $photoData['sort_order'] = (clone $query)->max('sort_order') + 1;
+        $photoData['is_main'] = !(clone $query)->exists();
 
-      if (is_array($warmSizes) && $warmSizes !== []) {
-        foreach ($warmSizes as $dim) {
-          $parts = explode('x', (string) $dim);
-          if (count($parts) !== 2 || !ctype_digit($parts[0]) || !ctype_digit($parts[1])) {
-            continue;
-          }
-          $baseW = (int) $parts[0];
-          $baseH = (int) $parts[1];
+        return Photo::create($photoData);
+      });
 
-          for ($f = 1; $f <= $warmFactor; $f++) {
-            $scaledDim = ($baseW * $f) . 'x' . ($baseH * $f);
-            $photo->generateThumbnail($scaledDim, $warmFormat);
-          }
-        }
-      }
+      $this->warmConfiguredThumbnails($photo);
 
       return response()->json([
         'success' => true,
@@ -182,17 +173,30 @@ class DropzoneController extends Controller
         'url' => $photo->getUrl(),
         'thumbnail' => $photo->getThumbnailUrl(),
       ]);
-    } catch (\Exception $e) {
-      // Log the complete error for debugging
-      \Log::error('Error uploading image: ' . $e->getMessage());
-      \Log::error('Received data: ' . json_encode($request->all()));
+    } catch (\Throwable $exception) {
+      if ($photo instanceof Photo && $photo->exists) {
+        $photo->deletePhoto();
+      }
+      Storage::disk($disk)->delete($createdPaths);
 
-      // Return error response with details
+      if ($exception instanceof HttpExceptionInterface) {
+        throw $exception;
+      }
+
+      $errorId = (string) Str::uuid();
+      Log::error('Dropzone upload failed.', [
+        'error_id' => $errorId,
+        'user_id' => $request->user()?->getAuthIdentifier(),
+        'model_type' => $validated['model_type'],
+        'model_id' => $validated['model_id'],
+        'exception' => $exception,
+      ]);
+
       return response()->json([
         'success' => false,
-        'message' => $e->getMessage(),
-        'data' => $request->all()
-      ], 422);
+        'message' => 'The image could not be uploaded.',
+        'error_id' => $errorId,
+      ], 500);
     }
   }
 
@@ -206,28 +210,8 @@ class DropzoneController extends Controller
   public function destroy(Request $request, $id)
   {
     $photo = Photo::findOrFail($id);
-
-    // Get the related model
-    $modelClass = $photo->photoable_type;
-    $model = $modelClass::findOrFail($photo->photoable_id);
-
-    // Verify ownership or permission to delete this photo
-    if (!$this->userCanDeletePhoto($request, $photo, $model)) {
-      $message = auth()->check()
-        ? 'Unauthorized. You are logged in but do not have permission to delete this photo. You may need specific ownership or permissions.'
-        : 'Unauthorized. Authentication required or valid session token needed to delete this photo.';
-
-      return response()->json([
-        'success' => false,
-        'message' => $message,
-        'details' => [
-          'authenticated' => auth()->check(),
-          'model_type' => get_class($model),
-          'model_id' => $model->id,
-          'photo_id' => $photo->id
-        ]
-      ], 403);
-    }
+    $model = $photo->photoable()->firstOrFail();
+    $this->authorizeAction('delete', $model, $photo);
 
     // Delete the photo and related files
     $success = $photo->deletePhoto();
@@ -235,99 +219,6 @@ class DropzoneController extends Controller
     return response()->json([
       'success' => $success,
     ]);
-  }
-
-  /**
-   * Check if the current user is authorized to delete the photo.
-   * This method can be extended in your application for custom authorization logic.
-   *
-   * @param \Illuminate\Http\Request $request
-   * @param \MacCesar\LaravelDropzoneEnhanced\Models\Photo $photo
-   * @param mixed $model
-   * @return bool
-   */
-  protected function userCanDeletePhoto(Request $request, Photo $photo, $model)
-  {
-    // For public sites or sites without authentication, allow deletion by default
-    try {
-      $isAuthenticated = auth()->check();
-    } catch (\Exception $e) {
-      // If auth system is not configured, allow deletion (public site)
-      return true;
-    }
-
-    // For non-authenticated scenarios, check session tokens or custom headers
-    if (!$isAuthenticated) {
-      // Check both model ID and photo ID in session tokens for better flexibility
-      $sessionKey1 = "photo_access_" . get_class($model) . "_{$model->id}";
-      $sessionKey2 = "photo_access_photo_{$photo->id}";
-
-      if ($request->session()->has($sessionKey1) || $request->session()->has($sessionKey2)) {
-        return true;
-      }
-
-      // Allow API or JavaScript requests with a valid access key
-      if ($request->header('X-Access-Key') && $request->header('X-Access-Key') === config('dropzone.security.access_key', null)) {
-        return true;
-      }
-
-      // For public sites, allow deletion by default (backward compatibility)
-      return true;
-    }
-
-    // From here, user is authenticated - check user_id column exists
-    if (!Schema::hasColumn('photos', 'user_id')) {
-      // If no user_id column, allow authenticated users to delete
-      return true;
-    }
-
-    // If the photo doesn't have a user_id, allow any authenticated user to delete it
-    $photoUserId = $photo->user_id ?? null;
-    if (is_null($photoUserId)) {
-      return true;
-    }
-
-    // Check if the photo belongs to the authenticated user
-    if ($photoUserId === auth()->id()) {
-      return true;
-    }
-
-    // Case 1: Direct model ownership via user_id field
-    if (isset($model->user_id) && $model->user_id === auth()->id()) {
-      return true;
-    }
-
-    // Case 2: User relationship on the model
-    if (method_exists($model, 'user') && $model->user && $model->user->id === auth()->id()) {
-      return true;
-    }
-
-    // Case 3: Custom ownership method on the model
-    if (method_exists($model, 'isOwnedBy') && $model->isOwnedBy(auth()->user())) {
-      return true;
-    }
-
-    // Case 4: User has admin status (common pattern in many apps)
-    if (method_exists(auth()->user(), 'isAdmin') && auth()->user()->isAdmin()) {
-      return true;
-    }
-
-    // Case 5: Laravel Gates integration
-    if (method_exists(auth(), 'can') && auth()->can('delete-photos')) {
-      return true;
-    }
-
-    // Case 6: Spatie Permission integration
-    if (method_exists(auth()->user(), 'hasPermissionTo') && auth()->user()->hasPermissionTo('delete photos')) {
-      return true;
-    }
-
-    // Optional config setting to allow all authenticated users (disabled by default)
-    if (config('dropzone.security.allow_all_authenticated_users', false)) {
-      return true;
-    }
-
-    return false; // Default deny if no authorization check passes
   }
 
   /**
@@ -340,53 +231,36 @@ class DropzoneController extends Controller
   public function setMain(Request $request, $id)
   {
     $photo = Photo::findOrFail($id);
-    $isMain = $photo->is_main;
+    $model = $photo->photoable()->firstOrFail();
+    $this->authorizeAction('set-main', $model, $photo);
 
-    // If the photo is already the main, toggle it
-    if ($isMain) {
-      $photo->update(['is_main' => false]);
-
-      // Fallback: set first photo as main if exists (same locale only)
-      $firstPhotoQuery = Photo::where('photoable_id', $photo->photoable_id)
+    $response = DB::transaction(function () use ($photo) {
+      $group = Photo::where('photoable_id', $photo->photoable_id)
         ->where('photoable_type', $photo->photoable_type)
-        ->where('id', '!=', $photo->id);
+        ->when(
+          config('dropzone.multilingual.enabled'),
+          fn ($query) => $photo->locale === null ? $query->whereNull('locale') : $query->where('locale', $photo->locale)
+        )
+        ->lockForUpdate();
 
-      // Filter by locale if multilingual is enabled
-      if (config('dropzone.multilingual.enabled')) {
-        $firstPhotoQuery->where('locale', $photo->locale);
+      if ($photo->is_main) {
+        $photo->update(['is_main' => false]);
+        $firstPhoto = (clone $group)
+          ->where('id', '!=', $photo->id)
+          ->orderBy('sort_order')
+          ->first();
+        $firstPhoto?->update(['is_main' => true]);
+
+        return ['is_main' => false, 'new_main_id' => $firstPhoto?->id];
       }
 
-      $firstPhoto = $firstPhotoQuery->orderBy('sort_order', 'asc')->first();
+      $group->update(['is_main' => false]);
+      $photo->update(['is_main' => true]);
 
-      if ($firstPhoto) {
-        $firstPhoto->update(['is_main' => true]);
-      }
+      return ['is_main' => true];
+    });
 
-      return response()->json([
-        'success' => true,
-        'is_main' => false,
-        'new_main_id' => $firstPhoto?->id
-      ]);
-    }
-
-    // Unset any previous main photo (same locale only)
-    $unsetQuery = Photo::where('photoable_id', $photo->photoable_id)
-      ->where('photoable_type', $photo->photoable_type);
-
-    // Filter by locale if multilingual is enabled
-    if (config('dropzone.multilingual.enabled')) {
-      $unsetQuery->where('locale', $photo->locale);
-    }
-
-    $unsetQuery->update(['is_main' => false]);
-
-    // Set this photo as main
-    $photo->update(['is_main' => true]);
-
-    return response()->json([
-      'success' => true,
-      'is_main' => true
-    ]);
+    return response()->json(['success' => true] + $response);
   }
 
   /**
@@ -399,6 +273,8 @@ class DropzoneController extends Controller
   public function checkIsMain(Request $request, $id)
   {
     $photo = Photo::findOrFail($id);
+    $model = $photo->photoable()->firstOrFail();
+    $this->authorizeAction('view-main-status', $model, $photo);
 
     return response()->json([
       'is_main' => (bool) $photo->is_main,
@@ -413,26 +289,32 @@ class DropzoneController extends Controller
    */
   public function reorder(Request $request)
   {
-    $request->validate([
-      'photos' => 'required|array',
-      'photos.*.id' => 'required|integer|exists:photos,id',
-      'photos.*.order' => 'required|integer',
+    $validated = $request->validate([
+      'photos' => ['required', 'array', 'min:1'],
+      'photos.*.id' => ['required', 'integer', 'distinct', 'exists:photos,id'],
+      'photos.*.order' => ['required', 'integer', 'min:1', 'distinct'],
     ]);
 
-    try {
-      foreach ($request->photos as $item) {
-        Photo::where('id', $item['id'])->update(['sort_order' => $item['order']]);
-      }
+    $photos = Photo::whereKey(collect($validated['photos'])->pluck('id'))->get()->keyBy('id');
+    $firstPhoto = $photos->first();
+    abort_if($firstPhoto === null, 404);
+    $model = $firstPhoto->photoable()->firstOrFail();
+    $this->authorizeAction('reorder', $model, $firstPhoto);
 
-      return response()->json([
-        'success' => true,
-      ]);
-    } catch (\Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 500);
-    }
+    $invalidGroup = $photos->contains(fn (Photo $photo) =>
+      $photo->photoable_id != $firstPhoto->photoable_id ||
+      $photo->photoable_type !== $firstPhoto->photoable_type ||
+      (config('dropzone.multilingual.enabled') && $photo->locale !== $firstPhoto->locale)
+    );
+    abort_if($invalidGroup, 422, 'All photos must belong to the same model and locale.');
+
+    DB::transaction(function () use ($validated, $photos) {
+      foreach ($validated['photos'] as $item) {
+        $photos->get($item['id'])->update(['sort_order' => $item['order']]);
+      }
+    });
+
+    return response()->json(['success' => true]);
   }
 
   /**
@@ -448,13 +330,43 @@ class DropzoneController extends Controller
       'locale' => 'nullable|string|max:10',
     ]);
 
+    abort_unless(config('dropzone.multilingual.enabled'), 422, 'Multilingual photo management is disabled.');
     $photo = Photo::findOrFail($validated['photo_id']);
+    $model = $photo->photoable()->firstOrFail();
+    $this->authorizeAction('update-locale', $model, $photo);
     $oldLocale = $photo->locale;
-    $photo->locale = $validated['locale'];
-    $photo->save();
+    DB::transaction(function () use ($photo, $oldLocale, $validated) {
+      $wasMain = $photo->is_main;
+      $photo->locale = $validated['locale'];
+      $photo->is_main = false;
+      $photo->save();
 
-    $this->recalculateSortOrder($photo->photoable_type, $photo->photoable_id, $oldLocale);
-    $this->recalculateSortOrder($photo->photoable_type, $photo->photoable_id, $validated['locale']);
+      $this->recalculateSortOrder($photo->photoable_type, $photo->photoable_id, $oldLocale);
+      $this->recalculateSortOrder($photo->photoable_type, $photo->photoable_id, $validated['locale']);
+
+      if ($wasMain) {
+        Photo::where('photoable_type', $photo->photoable_type)
+          ->where('photoable_id', $photo->photoable_id)
+          ->when($oldLocale === null, fn ($query) => $query->whereNull('locale'), fn ($query) => $query->where('locale', $oldLocale))
+          ->orderBy('sort_order')
+          ->first()?->update(['is_main' => true]);
+      }
+
+      $destination = Photo::where('photoable_type', $photo->photoable_type)
+        ->where('photoable_id', $photo->photoable_id)
+        ->when(
+          $validated['locale'] === null,
+          fn ($query) => $query->whereNull('locale'),
+          fn ($query) => $query->where('locale', $validated['locale'])
+        );
+
+      if ($wasMain) {
+        (clone $destination)->update(['is_main' => false]);
+        $photo->update(['is_main' => true]);
+      } elseif (!(clone $destination)->where('is_main', true)->exists()) {
+        $photo->update(['is_main' => true]);
+      }
+    });
 
     return response()->json([
       'success' => true,
@@ -487,6 +399,127 @@ class DropzoneController extends Controller
     foreach ($photos as $index => $photo) {
       $photo->sort_order = $index + 1;
       $photo->save();
+    }
+  }
+
+  /**
+   * Resolve a configured model alias and fail closed for unknown model types.
+   *
+   * @return \Illuminate\Database\Eloquent\Model
+   */
+  protected function resolveSignedModel(string $modelClass, int $id)
+  {
+    abort_unless(is_subclass_of($modelClass, \Illuminate\Database\Eloquent\Model::class), 404);
+
+    return $modelClass::query()->findOrFail($id);
+  }
+
+  /**
+   * Authorize a photo operation through the application's configured Gate.
+   */
+  protected function authorizeAction(string $action, $model, ?Photo $photo = null): void
+  {
+    if ($action === 'upload' && config('dropzone.security.allow_public_uploads', false)) {
+      return;
+    }
+
+    $ability = config('dropzone.security.authorization_ability', 'dropzone.manage-photos');
+    Gate::authorize($ability, [$action, $model, $photo]);
+  }
+
+  /**
+   * Enforce the configured number of photos on the server.
+   */
+  protected function ensurePhotoLimitNotExceeded($model, ?string $locale): void
+  {
+    $query = Photo::where('photoable_type', $model->getMorphClass())
+      ->where('photoable_id', $model->getKey())
+      ->when(
+        config('dropzone.multilingual.enabled'),
+        fn ($builder) => $locale === null ? $builder->whereNull('locale') : $builder->where('locale', $locale)
+      );
+
+    abort_if($query->count() >= (int) config('dropzone.images.max_files', 10), 422, 'The maximum number of photos has been reached.');
+  }
+
+  /**
+   * Convert a server-detected MIME type to a safe public file extension.
+   */
+  protected function extensionForMimeType(string $mimeType): string
+  {
+    return match ($mimeType) {
+      'image/jpeg' => 'jpg',
+      'image/png' => 'png',
+      'image/gif' => 'gif',
+      'image/webp' => 'webp',
+      default => throw ValidationException::withMessages([
+        'file' => ['The file must be a JPEG, PNG, GIF, or WebP image.'],
+      ]),
+    };
+  }
+
+  /**
+   * Validate image dimensions before GD decodes the image.
+   */
+  protected function assertImageDimensionsAllowed(int $width, int $height): void
+  {
+    $maxWidth = (int) config('dropzone.security.max_width', 12000);
+    $maxHeight = (int) config('dropzone.security.max_height', 12000);
+    $maxPixels = (int) config('dropzone.security.max_pixels', 40000000);
+
+    abort_if(
+      $width < 1 || $height < 1 || $width > $maxWidth || $height > $maxHeight || ($width * $height) > $maxPixels,
+      422,
+      'The image dimensions are too large.'
+    );
+  }
+
+  /**
+   * Parse and validate an exact thumbnail dimension.
+   *
+   * @return array{0:int,1:int}
+   */
+  protected function validatedDimensions(string $dimensions): array
+  {
+    abort_unless(preg_match('/^(\d+)x(\d+)$/', $dimensions, $matches) === 1, 500, 'Invalid thumbnail configuration.');
+    $width = (int) $matches[1];
+    $height = (int) $matches[2];
+    $this->assertImageDimensionsAllowed($width, $height);
+
+    return [$width, $height];
+  }
+
+  /**
+   * Generate only the thumbnail variants configured by the server.
+   */
+  protected function warmConfiguredThumbnails(Photo $photo): void
+  {
+    $sizes = config('dropzone.images.warm_sizes', []);
+    $factor = max(1, min(5, (int) config('dropzone.images.warm_factor', 1)));
+    $format = config('dropzone.images.warm_format', 'webp');
+    $allowedFormats = ['webp', 'jpg', 'png'];
+
+    if (!is_array($sizes) || count($sizes) > (int) config('dropzone.security.max_warm_sizes', 10) || !in_array($format, $allowedFormats, true)) {
+      throw new \UnexpectedValueException('Invalid warm thumbnail configuration.');
+    }
+
+    foreach ($sizes as $dimensions) {
+      $dimensions = (string) $dimensions;
+      if (ctype_digit($dimensions)) {
+        $baseWidth = (int) $dimensions;
+        $baseHeight = $photo->width > 0
+          ? (int) round($photo->height * ($baseWidth / $photo->width))
+          : 0;
+      } else {
+        [$baseWidth, $baseHeight] = $this->validatedDimensions($dimensions);
+      }
+
+      for ($multiplier = 1; $multiplier <= $factor; $multiplier++) {
+        $width = $baseWidth * $multiplier;
+        $height = $baseHeight * $multiplier;
+        $this->assertImageDimensionsAllowed($width, $height);
+        $photo->generateThumbnail("{$width}x{$height}", $format);
+      }
     }
   }
 

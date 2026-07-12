@@ -11,7 +11,7 @@ return [
   */
   'routes' => [
     'prefix' => '',
-    'middleware' => ['web', 'auth'],
+    'middleware' => ['web', 'auth', 'throttle:60,1'],
   ],
 
   /*
@@ -96,11 +96,36 @@ return [
   |
   */
   'security' => [
-    // Custom access key for API or JavaScript requests
-    'access_key' => null,
+    // Explicit opt-out for public upload forms. This bypasses the Gate only
+    // for upload; management operations always remain authorized.
+    'allow_public_uploads' => false,
 
-    // If true, any authenticated user can delete photos (use with caution)
-    'allow_all_authenticated_users' => false,
+    // Private uploads and every management operation use this Gate. The host
+    // defines it with: ($user, $action, $model, ?Photo $photo).
+    'authorization_ability' => 'dropzone.manage-photos',
+
+    // Maximum decoded dimensions accepted by the server-side image processor.
+    'max_width' => 12000,
+    'max_height' => 12000,
+    'max_pixels' => 40000000,
+
+    // Limit server-controlled warm thumbnail generation.
+    'max_warm_sizes' => 10,
+  ],
+
+  /*
+  |--------------------------------------------------------------------------
+  | Database
+  |--------------------------------------------------------------------------
+  |
+  | Configure the optional uploader association created by the package
+  | migration. Set users_table to null when the host does not want a FK.
+  |
+  */
+  'database' => [
+    'user_id_type' => 'bigint', // bigint, uuid, or ulid
+    'users_table' => null,
+    'users_key' => 'id',
   ],
 
   /*

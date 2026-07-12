@@ -8,12 +8,15 @@
   'maxFilesize' => config('dropzone.images.max_filesize', 10000) / 1000,
   'keepOriginalName' => false,
   'locale' => null,
-  'warmSizes'  => config('dropzone.images.warm_sizes', []),
-  'warmFactor' => config('dropzone.images.warm_factor', 1),
-  'warmFormat' => config('dropzone.images.warm_format', 'webp'),
 ])
 
 @php
+  $uploadUrl = \Illuminate\Support\Facades\URL::signedRoute('dropzone.upload', [
+    'model_type' => get_class($model),
+    'model_id' => $model->getKey(),
+    'directory' => $directory,
+    'locale' => $locale,
+  ]);
   $containerId = 'dropzone-container-' . ($locale ?? 'default');
   $uploadId = 'dropzone-upload-' . ($locale ?? 'default');
   $previewDisplayWidth = (int) config('dropzone.previews.display_width', 180);
@@ -23,7 +26,7 @@
   $previewThumbnailMethod = config('dropzone.previews.thumbnail_method', 'contain');
 @endphp
 
-<div class="dropzone-container" data-dimensions="{{ $dimensions }}" data-directory="{{ $directory }}" data-model-id="{{ $model->id }}" data-model-type="{{ get_class($model) }}" data-pre-resize="{{ $preResize ? 'true' : 'false' }}" data-keep-original-name="{{ $keepOriginalName ? 'true' : 'false' }}" data-locale="{{ $locale ?? '' }}" data-max-files="{{ $maxFiles }}" data-max-filesize="{{ $maxFilesize }}" data-reload-on-success="{{ $reloadOnSuccess ? 'true' : 'false' }}" data-warm-sizes='@json($warmSizes)' data-warm-factor="{{ (int) $warmFactor }}" data-warm-format="{{ $warmFormat }}" id="{{ $containerId }}">
+<div class="dropzone-container" data-dimensions="{{ $dimensions }}" data-model-id="{{ $model->id }}" data-pre-resize="{{ $preResize ? 'true' : 'false' }}" data-keep-original-name="{{ $keepOriginalName ? 'true' : 'false' }}" data-max-files="{{ $maxFiles }}" data-max-filesize="{{ $maxFilesize }}" data-reload-on-success="{{ $reloadOnSuccess ? 'true' : 'false' }}" data-upload-url="{{ $uploadUrl }}" id="{{ $containerId }}">
   <div class="dropzone" id="{{ $uploadId }}">
     <div class="dz-message">
       {{ __('dropzone-enhanced::messages.dropzone.message') }}
@@ -126,7 +129,7 @@
         const preResize = container.dataset.preResize === 'true';
 
         const options = {
-          url: "{{ route('dropzone.upload') }}",
+          url: container.dataset.uploadUrl,
           paramName: "file",
           maxFiles: Number.isNaN(maxFiles) ? 10 : maxFiles,
           maxFilesize: Number.isNaN(maxFilesize) ? 10 : maxFilesize, // MB
@@ -144,23 +147,7 @@
             // Add additional data
             this.on("sending", function(file, xhr, formData) {
               // Convert the ID to integer to ensure it is an integer and not a string
-              formData.append("model_id", parseInt(container.dataset.modelId, 10));
-              formData.append("model_type", container.dataset.modelType);
-              formData.append("directory", container.dataset.directory);
-              // Ensure dimensions always has a value
-              formData.append("dimensions", container.dataset.dimensions || "1920x1080");
               formData.append("keep_original_name", container.dataset.keepOriginalName === "true" ? "1" : "0");
-
-              // Add locale if present
-              const locale = container.dataset.locale;
-              if (locale && locale !== '') {
-                formData.append("locale", locale);
-              }
-
-              // Add warm generation parameters
-              formData.append("warm_sizes", container.dataset.warmSizes || '[]');
-              formData.append("warm_factor", container.dataset.warmFactor || '1');
-              formData.append("warm_format", container.dataset.warmFormat || 'webp');
             });
 
             // Handle success
