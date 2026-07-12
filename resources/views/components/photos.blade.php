@@ -189,7 +189,7 @@
     }
   </style>
 
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <x-dropzone-enhanced::sortable-script />
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {

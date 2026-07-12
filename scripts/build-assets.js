@@ -6,26 +6,30 @@ const path = require('path');
 console.log('🚀 Building Dropzone assets...');
 
 // Source and destination paths
-const sourceDir = path.join(__dirname, 'node_modules', 'dropzone', 'dist');
-const destDir = path.join(__dirname, 'resources', 'assets');
+const rootDir = path.resolve(__dirname, '..');
+const destDir = path.join(rootDir, 'resources', 'assets');
 
 // Files to copy
 const filesToCopy = [
   {
-    source: 'dropzone-min.js',
+    source: 'node_modules/dropzone/dist/dropzone-min.js',
     dest: 'dropzone-min.js'
   },
   {
-    source: 'dropzone-min.js.map',
+    source: 'node_modules/dropzone/dist/dropzone-min.js.map',
     dest: 'dropzone-min.js.map'
   },
   {
-    source: 'dropzone.css',
+    source: 'node_modules/dropzone/dist/dropzone.css',
     dest: 'dropzone.css'
   },
   {
-    source: 'dropzone.css.map',
+    source: 'node_modules/dropzone/dist/dropzone.css.map',
     dest: 'dropzone.css.map'
+  },
+  {
+    source: 'node_modules/sortablejs/Sortable.min.js',
+    dest: 'Sortable.min.js'
   }
 ];
 
@@ -39,29 +43,34 @@ let copiedFiles = 0;
 let skippedFiles = 0;
 
 filesToCopy.forEach(file => {
-  const sourcePath = path.join(sourceDir, file.source);
+  const sourcePath = path.join(rootDir, file.source);
   const destPath = path.join(destDir, file.dest);
 
   try {
     if (fs.existsSync(sourcePath)) {
       fs.copyFileSync(sourcePath, destPath);
-      console.log(`✅ Copied: ${file.source} → ${file.dest}`);
+      console.log(`✅ Copied: ${file.dest}`);
       copiedFiles++;
     } else {
-      console.log(`⚠️  Skipped: ${file.source} (not found)`);
+      console.error(`❌ Missing: ${file.source}`);
       skippedFiles++;
     }
   } catch (error) {
     console.error(`❌ Error copying ${file.source}:`, error.message);
+    skippedFiles++;
   }
 });
 
 // Get version info
 try {
-  const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, 'node_modules', 'dropzone', 'package.json'), 'utf8'));
+  const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'node_modules', 'dropzone', 'package.json'), 'utf8'));
   console.log(`\n📦 Dropzone version: ${packageJson.version}`);
 } catch (error) {
   console.log('\n📦 Could not read Dropzone version');
 }
 
 console.log(`\n🎉 Build complete! Copied ${copiedFiles} files, skipped ${skippedFiles} files.`);
+
+if (skippedFiles > 0) {
+  process.exitCode = 1;
+}
