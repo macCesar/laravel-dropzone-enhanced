@@ -15,8 +15,20 @@ return new class extends Migration
       Schema::create('photos', function (Blueprint $table) {
         $table->id();
         $table->morphs('photoable');
-        $table->unsignedBigInteger('user_id')->nullable();
-        $table->foreign('user_id')->references('id')->on('users')->onDelete('set null');
+        match (config('dropzone.database.user_id_type', 'bigint')) {
+          'bigint' => $table->unsignedBigInteger('user_id')->nullable(),
+          'uuid' => $table->uuid('user_id')->nullable(),
+          'ulid' => $table->ulid('user_id')->nullable(),
+          default => throw new RuntimeException('Invalid dropzone.database.user_id_type configuration.'),
+        };
+
+        $usersTable = config('dropzone.database.users_table');
+        if (is_string($usersTable) && $usersTable !== '') {
+          $table->foreign('user_id')
+            ->references(config('dropzone.database.users_key', 'id'))
+            ->on($usersTable)
+            ->nullOnDelete();
+        }
         $table->string('filename');
         $table->string('original_filename');
         $table->string('disk')->default('public');
