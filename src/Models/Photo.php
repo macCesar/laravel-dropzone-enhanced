@@ -54,7 +54,7 @@ class Photo extends Model
    * @property int $id
    * @property string $photoable_type
    * @property int $photoable_id
-   * @property int $user_id
+   * @property int|string|null $user_id
    * @property string $filename
    * @property string $original_filename
    * @property string $disk
@@ -201,6 +201,7 @@ class Photo extends Model
       $url = $this->buildUrl($thumbnailPath);
       // Cache for 1 hour (optimization #2: cache successful URLs)
       Cache::put($cacheKey, $url, 3600);
+      $this->rememberThumbnailCacheKey($cacheKey);
       return $url;
     }
 
@@ -208,6 +209,7 @@ class Photo extends Model
     if ($this->generateThumbnail($dimensionsString, $format, $quality, $canonicalCrop)) {
       $url = $this->buildUrl($thumbnailPath);
       Cache::put($cacheKey, $url, 3600);
+      $this->rememberThumbnailCacheKey($cacheKey);
       return $url;
     }
 
@@ -276,11 +278,20 @@ class Photo extends Model
       $directory = dirname($this->getPath());
       $filename = pathinfo($this->getPath(), PATHINFO_FILENAME);
       $extension = pathinfo($this->getPath(), PATHINFO_EXTENSION);
+      $legacyThumbnailDirectory = $directory . '/thumbnails';
 
       // Find thumbnail directories in central cache
       $cachePath = config('dropzone.storage.thumbnail_cache_path', '.cache');
       $thumbnailBaseDir = $cachePath . '/' . $directory;
       $storage = Storage::disk($this->disk);
+
+      if ($storage->exists($legacyThumbnailDirectory)) {
+        foreach ($storage->allFiles($legacyThumbnailDirectory) as $legacyThumbnail) {
+          if (pathinfo($legacyThumbnail, PATHINFO_FILENAME) === $filename) {
+            $paths[] = $legacyThumbnail;
+          }
+        }
+      }
 
       if ($storage->exists($thumbnailBaseDir)) {
         $subdirs = $storage->directories($thumbnailBaseDir);
@@ -412,22 +423,33 @@ class Photo extends Model
    */
   private function clearAllCache()
   {
-    // Note: This is a simple implementation. For production with Redis,
-    // you might want to use cache tags or a more sophisticated approach.
-    $commonQualities = [null, 80, 90, 95];
-    $commonFormats = [null, 'jpg', 'png', 'webp'];
-    $commonDimensions = ['288x288', '400x400', '800x600', '1200x800'];
-    $cropPositions = ['center', 'top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
-
-    foreach ($commonDimensions as $dim) {
-      foreach ($commonFormats as $fmt) {
-        foreach ($commonQualities as $qual) {
-          foreach ($cropPositions as $cropPos) {
-            $this->clearThumbnailCache($dim, $fmt, $qual, $cropPos);
-          }
-        }
-      }
+    $indexKey = $this->thumbnailCacheIndexKey();
+    foreach (Cache::get($indexKey, []) as $cacheKey) {
+      Cache::forget($cacheKey);
     }
+    Cache::forget($indexKey);
+  }
+
+  /**
+   * Track generated cache keys so every custom variant can be invalidated.
+   */
+  private function rememberThumbnailCacheKey(string $cacheKey): void
+  {
+    $indexKey = $this->thumbnailCacheIndexKey();
+    $keys = Cache::get($indexKey, []);
+
+    if (!in_array($cacheKey, $keys, true)) {
+      $keys[] = $cacheKey;
+      Cache::forever($indexKey, $keys);
+    }
+  }
+
+  /**
+   * Get the cache index key for this photo.
+   */
+  private function thumbnailCacheIndexKey(): string
+  {
+    return "photo_thumb_keys_{$this->id}";
   }
 
   /**
