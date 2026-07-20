@@ -21,6 +21,7 @@ class DropzoneServiceProvider extends ServiceProvider
       $this->commands([
         \MacCesar\LaravelDropzoneEnhanced\Console\Commands\InstallDropzoneEnhanced::class,
         \MacCesar\LaravelDropzoneEnhanced\Console\Commands\ClearThumbnailsCommand::class,
+        \MacCesar\LaravelDropzoneEnhanced\Console\Commands\MigrateCachePathCommand::class,
       ]);
     }
   }
