@@ -182,14 +182,18 @@ class Photo extends Model
       return $this->getUrl();
     }
 
+    // Never build interpolated upscales: clamp to the largest real crop
+    [$width, $height] = $this->clampDimensions($width, $height);
+
     $cropPosition = $cropPosition ?: config('dropzone.images.thumbnails.crop_position', 'center');
     $dimensionsString = $width . 'x' . $height;
     $canonicalCrop = ImageProcessor::canonicalCropPosition($cropPosition);
+    $cacheUrls = config('dropzone.images.thumbnails.cache_urls', true);
 
     // Check cache first (optimization #1: avoid repeated file system checks)
     $cacheKey = "photo_thumb_{$this->id}_{$dimensionsString}_" . ($format ?? 'orig') . "_{$quality}_{$canonicalCrop}";
 
-    if (Cache::has($cacheKey)) {
+    if ($cacheUrls && Cache::has($cacheKey)) {
       return Cache::get($cacheKey);
     }
 
@@ -199,17 +203,21 @@ class Photo extends Model
     // Check if thumbnail already exists
     if (Storage::disk($this->disk)->exists($thumbnailPath)) {
       $url = $this->buildUrl($thumbnailPath);
-      // Cache for 1 hour (optimization #2: cache successful URLs)
-      Cache::put($cacheKey, $url, 3600);
-      $this->rememberThumbnailCacheKey($cacheKey);
+      if ($cacheUrls) {
+        // Cache for 1 hour (optimization #2: cache successful URLs)
+        Cache::put($cacheKey, $url, 3600);
+        $this->rememberThumbnailCacheKey($cacheKey);
+      }
       return $url;
     }
 
     // Generate thumbnail dynamically if it doesn't exist
     if ($this->generateThumbnail($dimensionsString, $format, $quality, $canonicalCrop)) {
       $url = $this->buildUrl($thumbnailPath);
-      Cache::put($cacheKey, $url, 3600);
-      $this->rememberThumbnailCacheKey($cacheKey);
+      if ($cacheUrls) {
+        Cache::put($cacheKey, $url, 3600);
+        $this->rememberThumbnailCacheKey($cacheKey);
+      }
       return $url;
     }
 
@@ -234,6 +242,10 @@ class Photo extends Model
 
     $width = (int) $matches[1];
     $height = (int) $matches[2];
+
+    // Clamp here too so direct callers (e.g. warm generation) never upscale
+    [$width, $height] = $this->clampDimensions($width, $height);
+    $dimensions = $width . 'x' . $height;
 
     // Build paths
     $sourcePath = $this->getPath();
@@ -398,8 +410,8 @@ class Photo extends Model
 
     // All thumbnails live in a central cache directory for easy cleanup.
     // Format is conveyed by the file extension — no need to repeat it in the folder name.
-    // e.g. cache/products/16/462x700/photo.webp
-    //      cache/products/16/462x700/photo.jpg
+    // e.g. .cache/products/16/462x700/photo.webp
+    //      .cache/products/16/462x700/photo.jpg
     $cachePath = config('dropzone.storage.thumbnail_cache_path', '.cache');
 
     return $cachePath . '/' . $directory . '/' . $dimensions . $cropSuffix . '/' . $filename;
@@ -482,6 +494,7 @@ class Photo extends Model
   ): ?string {
     $dimensions ??= config('dropzone.images.thumbnails.dimensions', '288x288');
     [$width, $height] = $this->resolveDimensions($dimensions);
+    $explicitHeight = $height !== null;
     if ($width && !$height) {
       $height = $this->inferHeightFromOriginal($width);
     }
@@ -492,16 +505,20 @@ class Photo extends Model
     }
 
     $urls = [];
+    $seenUrls = [];
     for ($i = 1; $i <= $multipliers; $i++) {
       $scaledWidth = $width * $i;
-      // Recalculate height from original each time to avoid cumulative rounding errors
+      // Width-only mode: recalculate height from original each time to avoid cumulative rounding errors
       // e.g. round(2098 * 462/1386) = 699, then 699*2 = 1398 ≠ round(2098 * 924/1386) = 1399
-      $scaledHeight = ($this->width && $this->height && $this->width > 0)
+      // Explicit height: honor the requested aspect ratio instead of the original's
+      $scaledHeight = (!$explicitHeight && $this->width && $this->height && $this->width > 0)
         ? (int) round($this->height * ($scaledWidth / $this->width))
         : $height * $i;
       $scaledDim = $scaledWidth . 'x' . $scaledHeight;
       $url = $this->getUrl($scaledDim, $format, $quality);
-      if ($url) {
+      // Skip multipliers that clamp down to an already-listed variant
+      if ($url && !in_array($url, $seenUrls, true)) {
+        $seenUrls[] = $url;
         $urls[] = "{$url} {$i}x";
       }
     }
@@ -530,6 +547,36 @@ class Photo extends Model
     }
 
     return [null, null];
+  }
+
+  /**
+   * Clamp requested dimensions to the largest real crop of the original,
+   * preserving the requested aspect ratio (never build interpolated upscales).
+   *
+   * Skipped when original dimensions are unknown or when the host app opts
+   * into upscaling via dropzone.images.thumbnails.allow_upscale.
+   *
+   * @return array{0:int,1:int}
+   */
+  private function clampDimensions(int $width, int $height): array
+  {
+    if (config('dropzone.images.thumbnails.allow_upscale', false)) {
+      return [$width, $height];
+    }
+
+    if (!$this->width || !$this->height || $width <= 0 || $height <= 0) {
+      return [$width, $height];
+    }
+
+    // The crop region already is the largest area of the original matching
+    // the requested aspect ratio; anything beyond it is interpolation.
+    $cropData = ImageProcessor::calculateCropDimensions($this->width, $this->height, $width, $height);
+
+    if ($width > $cropData['newWidth']) {
+      return [$cropData['newWidth'], $cropData['newHeight']];
+    }
+
+    return [$width, $height];
   }
 
   /**

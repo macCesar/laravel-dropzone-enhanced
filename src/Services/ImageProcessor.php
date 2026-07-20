@@ -222,7 +222,7 @@ class ImageProcessor
    * @param int $targetHeight
    * @return array
    */
-  private static function calculateCropDimensions($sourceWidth, $sourceHeight, $targetWidth, $targetHeight, string $cropPosition = 'center')
+  public static function calculateCropDimensions($sourceWidth, $sourceHeight, $targetWidth, $targetHeight, string $cropPosition = 'center')
   {
     [$hAlign, $vAlign] = self::parseCropPosition($cropPosition);
     $sourceRatio = $sourceWidth / $sourceHeight;

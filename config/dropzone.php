@@ -32,6 +32,18 @@ return [
       'enabled' => true,
       'dimensions' => '288x288',
       'crop_position' => 'center', // options: center, top, bottom, left, right, top-left, top-right, bottom-left, bottom-right
+
+      // Allow generating thumbnails larger than the original image.
+      // Disabled by default: upscaled variants are interpolated, look worse
+      // and weigh more than the original. Requests beyond the original size
+      // are clamped to the largest real crop at the requested aspect ratio.
+      'allow_upscale' => false,
+
+      // Cache resolved thumbnail URLs in Laravel's cache store.
+      // With the file cache driver every cached URL costs one inode; disable
+      // this on hosts with inode quotas — it only saves a Storage::exists()
+      // call per request, the generated image files are unaffected.
+      'cache_urls' => true,
     ],
 
     // Warm (pre-generate) thumbnail sizes immediately at upload time.
@@ -83,8 +95,9 @@ return [
 
     // Central directory for all generated thumbnails (relative to disk root).
     // Keeping thumbnails here makes cleanup easy: just delete this one folder.
-    // Example: storage/app/public/cache/products/16/462x700_webp/photo.webp
-    'thumbnail_cache_path' => 'cache',
+    // Example: storage/app/public/.cache/products/16/462x700/photo.webp
+    // Upgrading from 'cache'? Run: php artisan dropzoneenhanced:migrate-cache-path
+    'thumbnail_cache_path' => '.cache',
   ],
 
   /*
