@@ -4,6 +4,24 @@ All notable changes to `laravel-dropzone-enhanced` will be documented in this fi
 
 ## Unreleased
 
+## 4.0.0 - 2026-07-20
+
+### Breaking
+
+- Changed the default `thumbnail_cache_path` from `cache` to `.cache`. Apps that kept the old default must either set `'thumbnail_cache_path' => 'cache'` explicitly or migrate with the new `dropzoneenhanced:migrate-cache-path` command.
+
+### Fixed
+
+- `srcset()` now honors an explicitly requested height: `srcset('640x360')` produces `640x360` and `1280x720`, matching what `src('640x360')` serves, instead of variants at the original photo's aspect ratio (which also never matched pre-generated sizes, forcing on-demand generation on every visit). Width-only calls (`srcset('640')`) keep inferring the height from the original.
+- Thumbnails are no longer generated larger than the original image (interpolated upscales that weigh more and look worse). Requests beyond the original size are clamped to the largest real crop at the requested aspect ratio, in both URL resolution and warm generation. Opt out with `images.thumbnails.allow_upscale => true`.
+- `srcset()` skips multiplier entries that clamp down to an already-listed variant, instead of emitting duplicates.
+
+### Added
+
+- `images.thumbnails.cache_urls` config option (default `true`). When disabled, thumbnail URLs are resolved without touching Laravel's cache store — with the `file` cache driver every cached URL costs one inode, which can exhaust file-count quotas on shared hosting.
+- `dropzoneenhanced:clear-thumbnails --keep=640x360,960x540` deletes every dimension directory except the listed ones (crop variants of a kept dimension are preserved), for cleaning up orphaned sizes after standardizing dimensions.
+- `dropzoneenhanced:migrate-cache-path` command to move (or `--delete`) the legacy `cache/` directory into the new `.cache/` location, with `--from`, `--to`, `--disk` and `--force` options.
+
 ## 3.0.0 - 2026-07-12
 
 ### Security

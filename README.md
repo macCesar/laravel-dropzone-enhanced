@@ -244,13 +244,13 @@ Setting `pre_resize: false` uploads the original file (useful when you need the 
 
 ## Thumbnail Cache Management
 
-All generated thumbnails are stored in a **central `cache/` directory** at the root of your storage disk. This makes cache management simple — no need to hunt down `thumbnails/` folders scattered throughout your storage tree.
+All generated thumbnails are stored in a **central `.cache/` directory** at the root of your storage disk. This makes cache management simple — no need to hunt down `thumbnails/` folders scattered throughout your storage tree.
 
 ### Storage Structure
 
 ```
 storage/app/public/
-├── cache/                          ← All generated thumbnails here
+├── .cache/                         ← All generated thumbnails here
 │   └── products/
 │       └── 16/
 │           ├── 462x700/
@@ -279,11 +279,17 @@ php artisan dropzoneenhanced:clear-thumbnails --force
 
 # Use a specific disk
 php artisan dropzoneenhanced:clear-thumbnails --disk=s3 --force
+
+# Keep specific dimensions, delete everything else (crop variants like
+# 640x360_top of a kept dimension are preserved too)
+php artisan dropzoneenhanced:clear-thumbnails --keep=640x360,960x540 --force
 ```
+
+`--keep` is the tool for standardizing sizes: after changing the dimensions your app requests, old dimension directories become orphans that nothing will ever serve again — list the sizes you actually use and everything else is removed.
 
 **Directly on the server:**
 ```bash
-rm -rf storage/app/public/cache
+rm -rf storage/app/public/.cache
 ```
 
 After clearing, thumbnails regenerate on demand when pages are accessed, or you can pre-generate them with your own warm-up command.
@@ -295,8 +301,51 @@ After clearing, thumbnails regenerate on demand when pages are accessed, or you 
 'storage' => [
     'disk' => 'public',
     'directory' => 'images',
-    'thumbnail_cache_path' => 'cache',  // Customize the cache directory name
+    'thumbnail_cache_path' => '.cache',  // Customize the cache directory name
 ],
+```
+
+### Upscale Protection
+
+By default, thumbnails are **never generated larger than the original image**. Requesting `1920x1080` from a 640px-wide photo would produce an interpolated upscale that weighs more than the original and looks worse — instead, the request is clamped to the largest real crop at the requested aspect ratio (`640x360` in this example). Both `src()`/`srcset()` and warm generation honor the clamp, and `srcset()` drops multiplier entries that collapse to an already-listed variant.
+
+If your app genuinely needs upscaled variants:
+
+```php
+// config/dropzone.php
+'images' => [
+    'thumbnails' => [
+        'allow_upscale' => true,  // default: false
+    ],
+],
+```
+
+### Thumbnail URL Caching
+
+Resolved thumbnail URLs are stored in Laravel's cache to skip a `Storage::exists()` check per request. With the `file` cache driver **every cached URL costs one inode** (one photo × several dimensions × formats adds up fast), which can exhaust file-count quotas on shared hosting. If that's your case, disable it — the generated image files themselves are unaffected:
+
+```php
+// config/dropzone.php
+'images' => [
+    'thumbnails' => [
+        'cache_urls' => false,  // default: true
+    ],
+],
+```
+
+### Upgrading from v3.0.x: `cache/` → `.cache/`
+
+**Breaking:** the default `thumbnail_cache_path` changed from `cache` to `.cache` (hidden directory, harder to confuse with app data). If you kept the old default, either set `'thumbnail_cache_path' => 'cache'` explicitly in your published config, or migrate the directory:
+
+```bash
+# Move existing thumbnails to the new location
+php artisan dropzoneenhanced:migrate-cache-path --force
+
+# Or just drop the old directory and let thumbnails regenerate on demand
+php artisan dropzoneenhanced:migrate-cache-path --delete --force
+
+# Custom directories
+php artisan dropzoneenhanced:migrate-cache-path --from=cache --to=.cache --disk=public
 ```
 
 ### Upgrading from v2.4.x
