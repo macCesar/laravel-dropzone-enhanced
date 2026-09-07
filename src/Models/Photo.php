@@ -186,18 +186,23 @@ class Photo extends Model
     $dimensionsString = $width . 'x' . $height;
     $canonicalCrop = ImageProcessor::canonicalCropPosition($cropPosition);
 
-    // Check cache first (optimization #1: avoid repeated file system checks)
-    $cacheKey = "photo_thumb_{$this->id}_{$dimensionsString}_" . ($format ?? 'orig') . "_{$quality}_{$canonicalCrop}";
-
-    if (Cache::has($cacheKey)) {
-      return Cache::get($cacheKey);
-    }
-
     // Build thumbnail path
     $thumbnailPath = $this->buildThumbnailPath($dimensionsString, $format, $canonicalCrop);
 
-    // Check if thumbnail already exists
-    if (Storage::disk($this->disk)->exists($thumbnailPath)) {
+    // A cached thumbnail is only usable while it is at least as new as its source.
+    // Replacing the original in place (same path, new content) must invalidate both
+    // the file on disk and the memoized URL, or the old image is served forever.
+    $isFresh = $this->thumbnailIsFresh($thumbnailPath);
+
+    // Check cache first (optimization #1: avoid repeated file system checks)
+    $cacheKey = "photo_thumb_{$this->id}_{$dimensionsString}_" . ($format ?? 'orig') . "_{$quality}_{$canonicalCrop}";
+
+    if ($isFresh && Cache::has($cacheKey)) {
+      return Cache::get($cacheKey);
+    }
+
+    // Check if an up-to-date thumbnail already exists
+    if ($isFresh) {
       $url = $this->buildUrl($thumbnailPath);
       // Cache for 1 hour (optimization #2: cache successful URLs)
       Cache::put($cacheKey, $url, 3600);
@@ -371,6 +376,28 @@ class Photo extends Model
    * @param string|null $format
    * @return string
    */
+  /**
+   * Determine whether a cached thumbnail can still be served.
+   *
+   * @param string $thumbnailPath
+   * @return bool
+   */
+  private function thumbnailIsFresh(string $thumbnailPath): bool
+  {
+    $storage = Storage::disk($this->disk);
+
+    if (!$storage->exists($thumbnailPath)) {
+      return false;
+    }
+
+    try {
+      return $storage->lastModified($thumbnailPath) >= $storage->lastModified($this->getPath());
+    } catch (\Throwable $e) {
+      // If either timestamp cannot be read, regenerating is the safe answer.
+      return false;
+    }
+  }
+
   private function buildThumbnailPath($dimensions, $format = null, string $cropPosition = 'center')
   {
     $directory = dirname($this->getPath());
