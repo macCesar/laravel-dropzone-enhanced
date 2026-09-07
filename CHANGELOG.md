@@ -4,6 +4,12 @@ All notable changes to `laravel-dropzone-enhanced` will be documented in this fi
 
 ## Unreleased
 
+## 2.9.1 - 2026-09-07
+
+### Fixed
+
+- **Thumbnails are regenerated when their source file is replaced in place.** Backport of the 4.0.1 fix. Both `HasPhotos::getPhotoUrlFromPath()` (and therefore `srcFromPath()` / `srcsetFromPath()`) and `Photo::getThumbnailUrl()` served any thumbnail that merely *existed* on disk, without ever comparing it against its source. That is correct for uploads, which land under a unique filename, but wrong whenever a file is overwritten at the same path — a screenshot re-captured under the same name, a photo replaced by a support script. The stale thumbnail was then served forever: no timestamp check, no invalidation, nothing short of deleting the cache file by hand. Both paths now reuse a cached thumbnail only while it is at least as new as its source, and regenerate otherwise. `Photo::getThumbnailUrl()` applies the same check *before* its memoized-URL early return, so a warm entry cannot keep pointing at an outdated file either. When a timestamp cannot be read, regenerating is chosen as the safe answer.
+
 ## 2.9.0 - 2026-07-10
 
 ### Added
