@@ -213,7 +213,7 @@ trait HasPhotos
     $quality ??= config('dropzone.images.thumbnails.quality', 90);
 
     if (
-      $storage->exists($thumbnailPath) ||
+      $this->thumbnailIsFresh($disk, $path, $thumbnailPath) ||
       ImageProcessor::generateThumbnail(
         $path,
         $thumbnailPath,
@@ -255,6 +255,34 @@ trait HasPhotos
     $pathSuffix = $format ? "_{$format}" : '';
     $cropSuffix = $canonicalCrop !== 'center' ? '_' . str_replace('-', '_', $canonicalCrop) : '';
     return $directory . '/thumbnails/' . $dimensions . $pathSuffix . $cropSuffix . '/' . $filename;
+  }
+
+  /**
+   * Determine whether a cached thumbnail can still be served.
+   *
+   * A thumbnail is only reusable while it is at least as new as its source. When the
+   * source file is replaced in place — same path, new content — the cached thumbnail
+   * becomes stale and must be regenerated, otherwise the old image is served forever.
+   *
+   * @param string|null $disk
+   * @param string $sourcePath
+   * @param string $thumbnailPath
+   * @return bool
+   */
+  protected function thumbnailIsFresh(?string $disk, string $sourcePath, string $thumbnailPath): bool
+  {
+    $storage = Storage::disk($disk ?? config('dropzone.storage.disk', config('filesystems.default')));
+
+    if (!$storage->exists($thumbnailPath)) {
+      return false;
+    }
+
+    try {
+      return $storage->lastModified($thumbnailPath) >= $storage->lastModified($sourcePath);
+    } catch (\Throwable $e) {
+      // If either timestamp cannot be read, regenerating is the safe answer.
+      return false;
+    }
   }
 
   /**
