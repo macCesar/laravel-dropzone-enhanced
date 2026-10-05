@@ -215,3 +215,17 @@ Current Dropzone.js version: **6.0.0-beta.2**
 ├── scripts/build-assets.js  # Asset build script
 ├── node_modules/dropzone/   # NPM installed Dropzone.js
 └── resources/assets/        # Built assets (published to public/vendor/)
+
+## Project state
+
+- `docs/project/requirements.md` — what the system must do
+- `docs/project/context.md` — architecture and conventions
+- `docs/project/decisions.md` — what was decided and why
+- `docs/project/status.md` — where the work stands right now
+
+Read `status.md` when resuming work. Do not import it at startup: it changes
+constantly, and loading it invalidates the cached prefix behind it.
+
+@docs/project/requirements.md
+@docs/project/context.md
+@docs/project/decisions.md

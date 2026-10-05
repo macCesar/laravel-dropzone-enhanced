@@ -4,7 +4,8 @@
 .windsurfrules
 
 # Documentation folder (for local development)
-/docs
+/docs/*
+!/docs/project/
 
 # Example component files
 /example-component

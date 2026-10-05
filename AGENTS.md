@@ -39,3 +39,13 @@
 - Tune routes prefix/middleware and storage disks in `config/dropzone.php`.
 - Required extensions: `ext-exif` (orientation) and `ext-gd` (image processing).
 - Do not log secrets or commit generated assets from consumer apps; use `.env` for keys.
+
+## Project state
+
+- `docs/project/requirements.md` — what the system must do
+- `docs/project/context.md` — architecture and conventions
+- `docs/project/decisions.md` — what was decided and why
+- `docs/project/status.md` — where the work stands right now
+
+Read `status.md` when resuming work. Do not import it at startup: it changes
+constantly, and loading it invalidates the cached prefix behind it.
