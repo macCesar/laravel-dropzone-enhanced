@@ -4,6 +4,10 @@ All notable changes to `laravel-dropzone-enhanced` will be documented in this fi
 
 ## Unreleased
 
+### Tests
+
+- Assert that booting the service provider emits no response bytes, preventing whitespace in package routes from corrupting file downloads and their Content-Length.
+
 ## 4.0.1 - 2026-09-07
 
 ### Fixed
